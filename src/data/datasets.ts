@@ -22,7 +22,7 @@ const normal: Dataset = {
   portals: [
     portal({
       id: 'n1',
-      name: 'Портал Тихого Изумруда',
+      name: 'Тихий Изумруд',
       world: 'Селенвир',
       energy: 20,
       stability: 90,
@@ -33,7 +33,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n2',
-      name: 'Портал Лунного Брода',
+      name: 'Лунный Брод',
       world: 'Аэлль-Тан',
       energy: 30,
       stability: 85,
@@ -44,7 +44,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n3',
-      name: 'Портал Серого Прилива',
+      name: 'Серый Прилив',
       world: 'Морндаль',
       energy: 55,
       stability: 60,
@@ -55,7 +55,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n4',
-      name: 'Портал Медного Эха',
+      name: 'Медное Эхо',
       world: 'Кассавир',
       energy: 60,
       stability: 55,
@@ -66,7 +66,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n5',
-      name: 'Портал Ржавого Ветра',
+      name: 'Ржавый Ветер',
       world: 'Тарнак',
       energy: 75,
       stability: 45,
@@ -77,7 +77,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n6',
-      name: 'Портал Багрового Шёпота',
+      name: 'Багровый Шёпот',
       world: 'Керн-Аллат',
       energy: 80,
       stability: 12,
@@ -88,7 +88,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n7',
-      name: 'Портал Зелёного Голода',
+      name: 'Зелёный Голод',
       world: 'Вельзор',
       energy: 65,
       stability: 22,
@@ -99,7 +99,7 @@ const normal: Dataset = {
     }),
     portal({
       id: 'n8',
-      name: 'Портал Угасшей Звезды',
+      name: 'Угасшая Звезда',
       world: 'Ниррат',
       energy: 30,
       stability: 40,
@@ -123,7 +123,7 @@ const critical: Dataset = {
   portals: [
     portal({
       id: 'c1',
-      name: 'Портал Треснувшего Неба',
+      name: 'Треснувшее Небо',
       world: 'Гхол-Марр',
       energy: 55,
       stability: 8, // критическая нестабильность
@@ -134,7 +134,7 @@ const critical: Dataset = {
     }),
     portal({
       id: 'c2',
-      name: 'Портал Последней Секунды',
+      name: 'Последняя Секунда',
       world: 'Овринт',
       energy: 45,
       stability: 62,
@@ -145,7 +145,7 @@ const critical: Dataset = {
     }),
     portal({
       id: 'c3',
-      name: 'Портал Кровавого Разлома',
+      name: 'Кровавый Разлом',
       world: 'Дракх-Уул',
       energy: 40,
       stability: 10, // и нестабильность,
@@ -156,7 +156,7 @@ const critical: Dataset = {
     }),
     portal({
       id: 'c4',
-      name: 'Портал Голодной Бездны',
+      name: 'Голодная Бездна',
       world: 'Сумеречный Иллат',
       energy: 100, // предельная нагрузка + существа
       stability: 25,
@@ -167,7 +167,7 @@ const critical: Dataset = {
     }),
     portal({
       id: 'c5',
-      name: 'Портал Воющего Пламени',
+      name: 'Воющее Пламя',
       world: 'Фарзан-Кор',
       energy: 95, // высокий базовый риск без жёстких модификаторов
       stability: 20,

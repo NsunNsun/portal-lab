@@ -1,9 +1,9 @@
-import type { Portal, RiskBreakdown } from '../domain/types'
+import type { ActionType, Portal, RiskBreakdown } from '../domain/types'
 import { computeRisk } from '../domain/risk'
-import { useMediaQuery } from './useMediaQuery'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
+import { PortalDetails } from './PortalDetails'
 
 interface Row {
   portal: Portal
@@ -17,31 +17,42 @@ function toSortedRows(portals: Portal[]): Row[] {
     .sort((a, b) => b.risk.score - a.risk.score)
 }
 
-function collapseText(hours: number): { text: string; danger: boolean } {
-  return { text: `${hours} ч`, danger: hours <= 2 }
-}
+/** Fixed column widths so the table never overflows its container. */
+const COLS = [
+  { key: 'name', label: 'Название', width: '13%' },
+  { key: 'energy', label: 'Энергия', width: '13%' },
+  { key: 'stability', label: 'Стабильность', width: '13%' },
+  { key: 'collapse', label: 'До схлопывания, ч', width: '16%' },
+  { key: 'creatures', label: 'Существа', width: '9%' },
+  { key: 'status', label: 'Статус', width: '13%' },
+  { key: 'risk', label: 'Риск', width: '23%' },
+] as const
 
 export function PortalsTable({
   portals,
   selectedId,
   onSelect,
+  onAction,
+  compact,
 }: {
   portals: Portal[]
   selectedId: string | null
-  onSelect: (id: string) => void
+  onSelect: (id: string | null) => void
+  onAction: (action: ActionType) => void
+  compact: boolean
 }) {
-  const compact = useMediaQuery('(max-width: 899px)')
   const rows = toSortedRows(portals)
 
   if (compact) {
     return (
       <div className="flex flex-col gap-2">
         {rows.map((row) => (
-          <PortalRowCard
+          <PortalAccordionCard
             key={row.portal.id}
             row={row}
             selected={row.portal.id === selectedId}
             onSelect={onSelect}
+            onAction={onAction}
           />
         ))}
       </div>
@@ -53,24 +64,25 @@ export function PortalsTable({
       className="overflow-hidden rounded-lg"
       style={{ background: 'var(--surface)', border: '1px solid var(--ring)' }}
     >
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          {COLS.map((c) => (
+            <col key={c.key} style={{ width: c.width }} />
+          ))}
+        </colgroup>
         <thead>
           <tr style={{ color: 'var(--ink-muted)' }} className="text-left">
-            <Th>Название</Th>
-            <Th>Мир</Th>
-            <Th className="w-36">Энергия</Th>
-            <Th className="w-36">Стабильность</Th>
-            <Th>До схлопывания</Th>
-            <Th>Существа</Th>
-            <Th>Статус</Th>
-            <Th>Риск</Th>
+            {COLS.map((c) => (
+              <th key={c.key} className="whitespace-nowrap px-2 py-2 text-xs font-normal">
+                {c.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {rows.map(({ portal, risk }) => {
             const selected = portal.id === selectedId
             const closed = portal.status === 'closed'
-            const collapse = collapseText(portal.hoursToCollapse)
             return (
               <tr
                 key={portal.id}
@@ -90,8 +102,12 @@ export function PortalsTable({
                   opacity: closed ? 0.55 : 1,
                 }}
               >
-                <Td className="font-medium">{portal.name}</Td>
-                <Td style={{ color: 'var(--ink-2)' }}>{portal.world}</Td>
+                <Td>
+                  <div className="font-medium leading-tight">{portal.name}</div>
+                  <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+                    {portal.world}
+                  </div>
+                </Td>
                 <Td>
                   <Meter value={portal.energy} label="Энергия" />
                 </Td>
@@ -101,16 +117,18 @@ export function PortalsTable({
                 <Td>
                   <span
                     className="nums"
-                    style={{ color: collapse.danger ? 'var(--risk-critical)' : 'var(--ink)' }}
+                    style={{
+                      color: portal.hoursToCollapse <= 2 ? 'var(--risk-critical)' : 'var(--ink)',
+                    }}
                   >
-                    {collapse.text}
+                    {portal.hoursToCollapse}
                   </span>
                 </Td>
                 <Td className="nums">{portal.creaturesInside}</Td>
                 <Td>
                   <StatusBadge status={portal.status} />
                 </Td>
-                <Td>
+                <Td className="whitespace-nowrap">
                   <RiskBadge level={risk.level} score={risk.score} />
                 </Td>
               </tr>
@@ -122,79 +140,83 @@ export function PortalsTable({
   )
 }
 
-function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 font-normal ${className}`}>{children}</th>
+function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-2 py-2 align-middle ${className}`}>{children}</td>
 }
 
-function Td({
-  children,
-  className = '',
-  style,
-}: {
-  children: React.ReactNode
-  className?: string
-  style?: React.CSSProperties
-}) {
-  return (
-    <td className={`px-3 py-2 align-middle ${className}`} style={style}>
-      {children}
-    </td>
-  )
-}
-
-/** Compact row rendered as a card below 900px. */
-function PortalRowCard({
+/**
+ * Compact card below 900px. The summary is a toggle button; when selected the
+ * full details expand right below it (single card open at a time).
+ */
+function PortalAccordionCard({
   row,
   selected,
   onSelect,
+  onAction,
 }: {
   row: Row
   selected: boolean
-  onSelect: (id: string) => void
+  onSelect: (id: string | null) => void
+  onAction: (action: ActionType) => void
 }) {
   const { portal, risk } = row
   const closed = portal.status === 'closed'
-  const collapse = collapseText(portal.hoursToCollapse)
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(portal.id)}
-      className="w-full rounded-lg p-3 text-left"
+    <div
+      className="rounded-lg"
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--ring)',
         boxShadow: selected ? 'inset 3px 0 0 0 var(--accent)' : 'none',
-        opacity: closed ? 0.55 : 1,
       }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="font-medium">{portal.name}</div>
-          <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-            {portal.world}
+      <button
+        type="button"
+        onClick={() => onSelect(selected ? null : portal.id)}
+        aria-expanded={selected}
+        className="w-full p-3 text-left"
+        style={{ opacity: closed ? 0.55 : 1 }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="font-medium leading-tight">{portal.name}</div>
+            <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+              {portal.world}
+            </div>
           </div>
+          <RiskBadge level={risk.level} score={risk.score} />
         </div>
-        <RiskBadge level={risk.level} score={risk.score} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <LabeledMeter label="Энергия" value={portal.energy} />
-        <LabeledMeter label="Стабильность" value={portal.stability} />
-        <Field label="До схлопывания">
-          <span
-            className="nums"
-            style={{ color: collapse.danger ? 'var(--risk-critical)' : 'var(--ink)' }}
-          >
-            {collapse.text}
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <LabeledMeter label="Энергия" value={portal.energy} />
+          <LabeledMeter label="Стабильность" value={portal.stability} />
+          <Field label="До схлопывания">
+            <span
+              className="nums"
+              style={{
+                color: portal.hoursToCollapse <= 2 ? 'var(--risk-critical)' : 'var(--ink)',
+              }}
+            >
+              {portal.hoursToCollapse} ч
+            </span>
+          </Field>
+          <Field label="Существа">
+            <span className="nums">{portal.creaturesInside}</span>
+          </Field>
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <StatusBadge status={portal.status} />
+          <span className="text-xs" style={{ color: 'var(--ink-muted)' }} aria-hidden>
+            {selected ? 'Свернуть ▲' : 'Подробнее ▼'}
           </span>
-        </Field>
-        <Field label="Существа">
-          <span className="nums">{portal.creaturesInside}</span>
-        </Field>
-      </div>
-      <div className="mt-3">
-        <StatusBadge status={portal.status} />
-      </div>
-    </button>
+        </div>
+      </button>
+
+      {selected && (
+        <div className="border-t px-3 pb-3 pt-3" style={{ borderColor: 'var(--line)' }}>
+          <PortalDetails portal={portal} onAction={onAction} />
+        </div>
+      )}
+    </div>
   )
 }
 

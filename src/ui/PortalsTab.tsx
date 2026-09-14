@@ -1,7 +1,9 @@
 import type { ActionType, Portal } from '../domain/types'
+import { useMediaQuery } from './useMediaQuery'
 import { SummaryTiles } from './SummaryTiles'
 import { PortalsTable } from './PortalsTable'
 import { PortalCard } from './PortalCard'
+import { InstructionPanel } from './InstructionPanel'
 
 /** «Порталы» tab: summary tiles, table (or empty state) and detail card. */
 export function PortalsTab({
@@ -14,9 +16,10 @@ export function PortalsTab({
   portals: Portal[]
   selectedId: string | null
   selectedPortal: Portal | null
-  onSelect: (id: string) => void
+  onSelect: (id: string | null) => void
   onAction: (action: ActionType) => void
 }) {
+  const compact = useMediaQuery('(max-width: 899px)')
   const empty = portals.length === 0
 
   return (
@@ -25,10 +28,34 @@ export function PortalsTab({
 
       {empty ? (
         <EmptyState />
+      ) : compact ? (
+        // Mobile: accordion list; instructions until a portal is chosen.
+        <div className="flex flex-col gap-3">
+          {!selectedId && <InstructionPanel />}
+          <PortalsTable
+            portals={portals}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onAction={onAction}
+            compact
+          />
+        </div>
       ) : (
+        // Wide: table on the left, detail card on the right. min-w-0 lets the
+        // fixed-layout table shrink inside the grid instead of overflowing.
         <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-          <PortalsTable portals={portals} selectedId={selectedId} onSelect={onSelect} />
-          <PortalCard portal={selectedPortal} onAction={onAction} />
+          <div className="min-w-0">
+            <PortalsTable
+              portals={portals}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              onAction={onAction}
+              compact={false}
+            />
+          </div>
+          <div className="min-w-0">
+            <PortalCard portal={selectedPortal} onAction={onAction} />
+          </div>
         </div>
       )}
     </div>

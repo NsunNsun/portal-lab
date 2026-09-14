@@ -39,6 +39,10 @@ export function EventLog({ log }: { log: LogEntry[] }) {
         })}
       </div>
 
+      <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+        Журнал ведётся в рамках текущего набора данных и очищается при его смене.
+      </p>
+
       {entries.length === 0 ? (
         <p className="py-10 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
           Событий пока нет. Выполните действие над порталом.

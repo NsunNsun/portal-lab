@@ -1,7 +1,7 @@
 import { useCallback, useReducer, useRef, useState } from 'react'
 import type { ActionType, Portal, PortalStatus } from './domain/types'
 import { checkAction } from './domain/rules'
-import { DEFAULT_DATASET_KEY, getDataset } from './data/datasets'
+import { DEFAULT_DATASET_KEY } from './data/datasets'
 import { appReducer, initAppState } from './ui/appReducer'
 import { Header } from './ui/Header'
 import { Tabs } from './ui/Tabs'
@@ -86,20 +86,18 @@ export default function App() {
     setConfirm(null)
   }, [confirm, state.portals, performApply])
 
-  const handleSelectDataset = useCallback(
-    (key: string) => {
-      dispatch({ type: 'loadDataset', key })
-      setSelectedId(null)
-      notify('system', `Загружен набор: «${getDataset(key).name}»`)
-    },
-    [notify],
-  )
+  // Loading a dataset no longer raises a toast — the reducer still writes a
+  // system entry to the log. Toasts are reserved for actions, rejections and
+  // the «Прошёл час» event.
+  const handleSelectDataset = useCallback((key: string) => {
+    dispatch({ type: 'loadDataset', key })
+    setSelectedId(null)
+  }, [])
 
   const handleReset = useCallback(() => {
     dispatch({ type: 'loadDataset', key: state.datasetKey })
     setSelectedId(null)
-    notify('system', 'Набор перезагружен')
-  }, [state.datasetKey, notify])
+  }, [state.datasetKey])
 
   const handleAdvanceHour = useCallback(() => {
     dispatch({ type: 'advanceHour' })

@@ -13,7 +13,7 @@ export function Header({
   onReset: () => void
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b py-4 md:flex-row md:items-center md:justify-between"
+    <header className="flex flex-col gap-4 border-b py-4 md:flex-row md:items-start md:justify-between"
       style={{ borderColor: 'var(--line)' }}
     >
       <div>
@@ -23,16 +23,27 @@ export function Header({
         <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
           Панель смотрителя
         </p>
+        <p className="mt-0.5 text-xs" style={{ color: 'var(--ink-muted)' }}>
+          Следите за риском порталов и решайте, что с ними делать.
+        </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented value={datasetKey} onChange={onSelectDataset} />
-        <button type="button" onClick={onAdvanceHour} className="control">
-          ⏱ Прошёл час
-        </button>
-        <button type="button" onClick={onReset} className="control">
-          Сбросить
-        </button>
+      {/* Controls: stacked on mobile (dataset switch, then time/reset), inline on md+. */}
+      <div className="flex flex-col gap-2 md:items-end">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            Набор данных:
+          </span>
+          <Segmented value={datasetKey} onChange={onSelectDataset} />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onAdvanceHour} className="control">
+            ⏱ Прошёл час
+          </button>
+          <button type="button" onClick={onReset} className="control">
+            Сбросить
+          </button>
+        </div>
       </div>
     </header>
   )
@@ -41,7 +52,7 @@ export function Header({
 function Segmented({ value, onChange }: { value: string; onChange: (key: string) => void }) {
   return (
     <div
-      className="inline-flex rounded-md p-0.5"
+      className="inline-flex flex-wrap rounded-md p-0.5"
       style={{ border: '1px solid var(--line)' }}
       role="tablist"
       aria-label="Набор данных"
