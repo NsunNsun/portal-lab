@@ -1,4 +1,5 @@
-import type { Portal } from '../domain/types'
+import type { AppState, Portal } from '../domain/types'
+import { SEED } from '../domain/random'
 
 /** Build a portal for tests; override only the fields a case cares about. */
 export function makePortal(overrides: Partial<Portal> = {}): Portal {
@@ -14,7 +15,22 @@ export function makePortal(overrides: Partial<Portal> = {}): Portal {
     observerSent: false,
     surveyed: true,
     rescuerSent: false,
+    spawnedAtHour: 0,
     history: [],
+    ...overrides,
+  }
+}
+
+/** Build an AppState around some portals, with a fresh generator seed. */
+export function makeState(portals: Portal[] = [], overrides: Partial<AppState> = {}): AppState {
+  return {
+    portals,
+    log: [],
+    hoursElapsed: 0,
+    rng: SEED,
+    spawnCount: 0,
+    usedNameIndices: [],
+    lastSpawn: null,
     ...overrides,
   }
 }

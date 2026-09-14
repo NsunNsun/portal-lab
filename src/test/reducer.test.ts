@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { applyAction, advanceHour } from '../domain/reducer'
-import type { AppState } from '../domain/types'
-import { makePortal } from './helpers'
+import { makePortal, makeState } from './helpers'
 
-function stateWith(...portals: ReturnType<typeof makePortal>[]): AppState {
-  return { portals, log: [], datasetKey: 'test' }
+function stateWith(...portals: ReturnType<typeof makePortal>[]) {
+  return makeState(portals)
 }
 
 describe('applyAction', () => {
