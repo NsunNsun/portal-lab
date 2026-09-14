@@ -40,7 +40,7 @@ export function EventLog({ log }: { log: LogEntry[] }) {
       </div>
 
       <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-        Журнал ведётся в рамках текущего набора данных и очищается при его смене.
+        Журнал ведётся в рамках текущей смены и очищается при её перезапуске.
       </p>
 
       {entries.length === 0 ? (

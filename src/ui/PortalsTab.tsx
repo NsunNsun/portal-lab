@@ -10,12 +10,14 @@ export function PortalsTab({
   portals,
   selectedId,
   selectedPortal,
+  hoursElapsed,
   onSelect,
   onAction,
 }: {
   portals: Portal[]
   selectedId: string | null
   selectedPortal: Portal | null
+  hoursElapsed: number
   onSelect: (id: string | null) => void
   onAction: (action: ActionType) => void
 }) {
@@ -35,6 +37,7 @@ export function PortalsTab({
           <PortalsTable
             portals={portals}
             selectedId={selectedId}
+            hoursElapsed={hoursElapsed}
             onSelect={onSelect}
             onAction={onAction}
             compact
@@ -48,6 +51,7 @@ export function PortalsTab({
             <PortalsTable
               portals={portals}
               selectedId={selectedId}
+              hoursElapsed={hoursElapsed}
               onSelect={onSelect}
               onAction={onAction}
               compact={false}
@@ -75,7 +79,7 @@ function EmptyState() {
       <div>
         <h2 className="text-base font-semibold">В лаборатории нет активных порталов</h2>
         <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
-          Выберите другой набор данных в шапке, чтобы увидеть рабочую смену.
+          Нажмите «Новая смена» в шапке или «Прошёл час» — со временем порталы появляются сами.
         </p>
       </div>
     </div>

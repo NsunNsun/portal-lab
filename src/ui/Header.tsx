@@ -1,19 +1,29 @@
-import { DATASET_OPTIONS } from '../data/datasets'
+import { Tabs } from './Tabs'
+import type { TabKey } from './Tabs'
+import type { ShiftKind } from '../domain/types'
+import { MAX_OPEN_PORTALS } from '../domain/reducer'
 
-/** App header: title on the left, dataset switch + time/reset controls right. */
+/**
+ * App header: title on the left; on the right the section tabs (moved up from
+ * their own row) over a controls row — start a shift, advance the hour, and the
+ * open-portal counter.
+ */
 export function Header({
-  datasetKey,
-  onSelectDataset,
+  tab,
+  onTabChange,
+  openCount,
   onAdvanceHour,
-  onReset,
+  onStartShift,
 }: {
-  datasetKey: string
-  onSelectDataset: (key: string) => void
+  tab: TabKey
+  onTabChange: (key: TabKey) => void
+  openCount: number
   onAdvanceHour: () => void
-  onReset: () => void
+  onStartShift: (kind: ShiftKind) => void
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b py-4 md:flex-row md:items-start md:justify-between"
+    <header
+      className="flex flex-col gap-4 border-b py-4 md:flex-row md:items-start md:justify-between"
       style={{ borderColor: 'var(--line)' }}
     >
       <div>
@@ -28,54 +38,24 @@ export function Header({
         </p>
       </div>
 
-      {/* Controls: stacked on mobile (dataset switch, then time/reset), inline on md+. */}
-      <div className="flex flex-col gap-2 md:items-end">
+      {/* Tabs on top, controls beneath; both right-aligned on md+. */}
+      <div className="flex flex-col gap-3 md:items-end">
+        <Tabs value={tab} onChange={onTabChange} />
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-            Набор данных:
-          </span>
-          <Segmented value={datasetKey} onChange={onSelectDataset} />
-        </div>
-        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => onStartShift('new')} className="control">
+            Новая смена
+          </button>
+          <button type="button" onClick={() => onStartShift('empty')} className="control">
+            Пустая смена
+          </button>
           <button type="button" onClick={onAdvanceHour} className="control">
             ⏱ Прошёл час
           </button>
-          <button type="button" onClick={onReset} className="control">
-            Сбросить
-          </button>
+          <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            Открыто {openCount} из {MAX_OPEN_PORTALS}
+          </span>
         </div>
       </div>
     </header>
-  )
-}
-
-function Segmented({ value, onChange }: { value: string; onChange: (key: string) => void }) {
-  return (
-    <div
-      className="inline-flex flex-wrap rounded-md p-0.5"
-      style={{ border: '1px solid var(--line)' }}
-      role="tablist"
-      aria-label="Набор данных"
-    >
-      {DATASET_OPTIONS.map((opt) => {
-        const active = opt.key === value
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(opt.key)}
-            className="rounded px-3 py-1 text-sm"
-            style={{
-              background: active ? 'var(--accent)' : 'transparent',
-              color: active ? 'var(--ink)' : 'var(--ink-2)',
-            }}
-          >
-            {opt.name}
-          </button>
-        )
-      })}
-    </div>
   )
 }

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import type { ActionType, Portal, PortalStatus } from './domain/types'
+import type { ActionType, Portal, PortalStatus, ShiftKind } from './domain/types'
 import { checkAction } from './domain/rules'
-import { DEFAULT_DATASET_KEY } from './data/datasets'
 import { appReducer, initAppState } from './ui/appReducer'
 import { Header } from './ui/Header'
-import { Tabs } from './ui/Tabs'
 import type { TabKey } from './ui/Tabs'
 import { PortalsTab } from './ui/PortalsTab'
 import { EventLog } from './ui/EventLog'
@@ -28,7 +26,7 @@ function statusAfter(portal: Portal, action: ActionType): PortalStatus {
 }
 
 export default function App() {
-  const [state, dispatch] = useReducer(appReducer, DEFAULT_DATASET_KEY, initAppState)
+  const [state, dispatch] = useReducer(appReducer, 'new', initAppState)
   const [tab, setTab] = useState<TabKey>('portals')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -36,6 +34,17 @@ export default function App() {
   const toastSeq = useRef(0)
 
   const selectedPortal = state.portals.find((p) => p.id === selectedId) ?? null
+  const openCount = state.portals.filter((p) => p.status !== 'closed').length
+
+  const notify = useCallback((kind: ToastKind, message: string) => {
+    toastSeq.current += 1
+    const id = toastSeq.current
+    setToasts((prev) => [...prev, { id, kind, message }])
+  }, [])
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
 
   // Esc clears the selection (and thus closes the detail card). When a confirm
   // dialog is open it handles Esc itself, so we leave the selection alone.
@@ -48,15 +57,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedId, confirm])
 
-  const notify = useCallback((kind: ToastKind, message: string) => {
-    toastSeq.current += 1
-    const id = toastSeq.current
-    setToasts((prev) => [...prev, { id, kind, message }])
-  }, [])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+  // «Прошёл час» toast, merged with a spawn note when a portal appeared. Driven
+  // off the hour counter so it fires once per advance and never on a shift reset.
+  const prevHours = useRef(state.hoursElapsed)
+  useEffect(() => {
+    if (state.hoursElapsed > prevHours.current) {
+      notify(
+        'system',
+        state.lastSpawn ? `Прошёл час. Открылся портал: ${state.lastSpawn}` : 'Прошёл час',
+      )
+    }
+    prevHours.current = state.hoursElapsed
+  }, [state.hoursElapsed, state.lastSpawn, notify])
 
   const performApply = useCallback(
     (portal: Portal, action: ActionType) => {
@@ -97,36 +109,26 @@ export default function App() {
     setConfirm(null)
   }, [confirm, state.portals, performApply])
 
-  // Loading a dataset no longer raises a toast — the reducer still writes a
-  // system entry to the log. Toasts are reserved for actions, rejections and
-  // the «Прошёл час» event.
-  const handleSelectDataset = useCallback((key: string) => {
-    dispatch({ type: 'loadDataset', key })
+  // Starting a shift fully resets domain state; the reducer writes a system log
+  // entry. Toasts stay reserved for actions, rejections and the hourly tick.
+  const handleStartShift = useCallback((kind: ShiftKind) => {
+    dispatch({ type: 'startShift', kind })
     setSelectedId(null)
   }, [])
 
-  const handleReset = useCallback(() => {
-    dispatch({ type: 'loadDataset', key: state.datasetKey })
-    setSelectedId(null)
-  }, [state.datasetKey])
-
   const handleAdvanceHour = useCallback(() => {
     dispatch({ type: 'advanceHour' })
-    notify('system', 'Прошёл час')
-  }, [notify])
+  }, [])
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4">
       <Header
-        datasetKey={state.datasetKey}
-        onSelectDataset={handleSelectDataset}
+        tab={tab}
+        onTabChange={setTab}
+        openCount={openCount}
         onAdvanceHour={handleAdvanceHour}
-        onReset={handleReset}
+        onStartShift={handleStartShift}
       />
-
-      <div className="mt-4">
-        <Tabs value={tab} onChange={setTab} />
-      </div>
 
       <main className="py-5">
         {tab === 'portals' && (
@@ -134,6 +136,7 @@ export default function App() {
             portals={state.portals}
             selectedId={selectedId}
             selectedPortal={selectedPortal}
+            hoursElapsed={state.hoursElapsed}
             onSelect={setSelectedId}
             onAction={handleAction}
           />
