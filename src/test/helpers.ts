@@ -12,6 +12,8 @@ export function makePortal(overrides: Partial<Portal> = {}): Portal {
     creaturesInside: 0,
     status: 'open',
     observerSent: false,
+    surveyed: true,
+    rescuerSent: false,
     history: [],
     ...overrides,
   }
