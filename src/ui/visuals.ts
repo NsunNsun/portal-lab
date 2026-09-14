@@ -67,6 +67,22 @@ export const LOG_KIND_META: Record<
   system: { word: 'система', icon: '•', color: 'var(--ink-muted)' },
 }
 
+/**
+ * Human-readable effect text for each risk modifier, keyed by the modifier
+ * label the domain returns. Presentation only — keeps code field names
+ * (stability, hoursToCollapse) out of the interface.
+ */
+export const MODIFIER_EFFECT: Record<string, string> = {
+  'Критическая нестабильность': 'Стабильность ниже 20 → риск не ниже 85',
+  'Портал вот-вот схлопнется': 'Меньше 2 часов до схлопывания → риск не ниже 85',
+  'Внутри живые существа': 'Внутри живые существа → +5 к риску',
+}
+
+/** Format a number with up to one decimal place, comma as the decimal mark. */
+export function formatNum(n: number): string {
+  return n.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+}
+
 /** Format an epoch-ms timestamp as HH:MM:SS in local time. */
 export function formatTime(at: number): string {
   return new Date(at).toLocaleTimeString('ru-RU', {

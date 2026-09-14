@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { RiskBreakdown } from '../domain/types'
+import { MODIFIER_EFFECT, formatNum } from './visuals'
 
 /**
  * Collapsible «Как посчитан риск». All numbers come from the breakdown the
@@ -44,11 +45,11 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
                   {risk.parts.map((p) => (
                     <tr key={p.label} className="border-t" style={{ borderColor: 'var(--line)' }}>
                       <td className="py-1">{p.label}</td>
-                      <td className="nums py-1 text-right">{round(p.raw)}</td>
+                      <td className="nums py-1 text-right">{formatNum(p.raw)}</td>
                       <td className="nums py-1 text-right" style={{ color: 'var(--ink-muted)' }}>
-                        {p.weight}
+                        {formatNum(p.weight)}
                       </td>
-                      <td className="nums py-1 text-right">{round(p.contribution)}</td>
+                      <td className="nums py-1 text-right">{formatNum(p.contribution)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -59,7 +60,7 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
                 style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
               >
                 <span>База</span>
-                <span className="nums">{round(base)}</span>
+                <span className="nums">{formatNum(base)}</span>
               </div>
 
               <div className="mt-3 space-y-1">
@@ -69,17 +70,11 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
                 {risk.modifiers.map((m) => (
                   <div
                     key={m.label}
-                    className="flex items-center justify-between gap-2 text-xs"
-                    style={{
-                      color: m.applied ? 'var(--risk-high)' : 'var(--ink-muted)',
-                      opacity: m.applied ? 1 : 0.6,
-                    }}
+                    className="flex items-start gap-2 text-xs"
+                    style={{ color: m.applied ? 'var(--risk-high)' : 'var(--ink-muted)' }}
                   >
-                    <span>
-                      {m.applied ? '● ' : '○ '}
-                      {m.label}
-                    </span>
-                    <span>{m.effect}</span>
+                    <span aria-hidden>{m.applied ? '●' : '○'}</span>
+                    <span>{MODIFIER_EFFECT[m.label] ?? m.label}</span>
                   </div>
                 ))}
               </div>
@@ -97,8 +92,4 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
       )}
     </div>
   )
-}
-
-function round(n: number): number {
-  return Math.round(n * 100) / 100
 }

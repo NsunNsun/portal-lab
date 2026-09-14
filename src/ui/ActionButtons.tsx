@@ -31,9 +31,8 @@ export function ActionButtons({
             className="rounded-md px-3 py-2 text-sm"
             style={{
               border: `1px solid ${forbidden ? 'var(--risk-critical)' : 'var(--line)'}`,
-              background: 'var(--surface)',
-              color: forbidden ? 'var(--ink-muted)' : 'var(--ink)',
-              opacity: forbidden ? 0.6 : 1,
+              background: forbidden ? 'rgba(208,59,59,0.08)' : 'var(--surface)',
+              color: forbidden ? 'var(--ink-2)' : 'var(--ink)',
             }}
           >
             {actionLabel(action, portal.status)}
