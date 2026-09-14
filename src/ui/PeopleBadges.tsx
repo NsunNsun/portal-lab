@@ -14,6 +14,19 @@ export function PeopleBadges({ portal }: { portal: Portal }) {
   )
 }
 
+/** «Новый» badge, shown during the hour a portal appears. Accent-tinted. */
+export function NewBadge() {
+  return (
+    <span
+      title="Портал появился только что"
+      className="ml-1 inline-flex items-center rounded px-1 py-0.5 align-middle text-[10px] font-medium leading-none"
+      style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
+    >
+      Новый
+    </span>
+  )
+}
+
 function Badge({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <span

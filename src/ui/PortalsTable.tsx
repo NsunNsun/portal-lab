@@ -1,9 +1,11 @@
 import type { ActionType, Portal, RiskBreakdown } from '../domain/types'
 import { computeRisk } from '../domain/risk'
+import { sortPortals } from '../domain/sort'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
 import { PeopleBadges } from './PeopleBadges'
+import { NewBadge } from './PeopleBadges'
 import { PortalDetails } from './PortalDetails'
 
 interface Row {
@@ -11,30 +13,9 @@ interface Row {
   risk: RiskBreakdown
 }
 
-/**
- * Sort priority (view-only, not domain):
- *   1) questioned portals — pinned to the top
- *   2) unsurveyed portals — parameters unknown
- *   3) the rest, by risk descending
- * Ties within a group break by name.
- */
-function sortRank(p: Portal): number {
-  if (p.status === 'questioned') return 0
-  if (!p.surveyed) return 1
-  return 2
-}
-
+/** Sort via the domain comparator, then attach each portal's risk breakdown. */
 function toSortedRows(portals: Portal[]): Row[] {
-  return portals
-    .map((portal) => ({ portal, risk: computeRisk(portal) }))
-    .sort((a, b) => {
-      const rank = sortRank(a.portal) - sortRank(b.portal)
-      if (rank !== 0) return rank
-      const sa = a.risk.known ? a.risk.score : -1
-      const sb = b.risk.known ? b.risk.score : -1
-      if (sb !== sa) return sb - sa
-      return a.portal.name.localeCompare(b.portal.name, 'ru')
-    })
+  return sortPortals(portals).map((portal) => ({ portal, risk: computeRisk(portal) }))
 }
 
 /** Fixed column widths so the table never overflows its container. */
@@ -53,15 +34,22 @@ function Dash() {
   return <span style={{ color: 'var(--ink-muted)' }}>—</span>
 }
 
+/** A portal counts as «new» during the hour it appeared. */
+function isNew(portal: Portal, hoursElapsed: number): boolean {
+  return hoursElapsed - portal.spawnedAtHour < 1
+}
+
 export function PortalsTable({
   portals,
   selectedId,
+  hoursElapsed,
   onSelect,
   onAction,
   compact,
 }: {
   portals: Portal[]
   selectedId: string | null
+  hoursElapsed: number
   onSelect: (id: string | null) => void
   onAction: (action: ActionType) => void
   compact: boolean
@@ -76,6 +64,7 @@ export function PortalsTable({
             key={row.portal.id}
             row={row}
             selected={row.portal.id === selectedId}
+            isNew={isNew(row.portal, hoursElapsed)}
             onSelect={onSelect}
             onAction={onAction}
           />
@@ -132,6 +121,7 @@ export function PortalsTable({
                 <Td>
                   <div className="font-medium leading-tight">
                     {portal.name}
+                    {isNew(portal, hoursElapsed) && <NewBadge />}
                     <PeopleBadges portal={portal} />
                   </div>
                   <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
@@ -177,11 +167,13 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 function PortalAccordionCard({
   row,
   selected,
+  isNew,
   onSelect,
   onAction,
 }: {
   row: Row
   selected: boolean
+  isNew: boolean
   onSelect: (id: string | null) => void
   onAction: (action: ActionType) => void
 }) {
@@ -208,6 +200,7 @@ function PortalAccordionCard({
           <div>
             <div className="font-medium leading-tight">
               {portal.name}
+              {isNew && <NewBadge />}
               <PeopleBadges portal={portal} />
             </div>
             <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
