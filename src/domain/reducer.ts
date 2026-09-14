@@ -1,5 +1,6 @@
 import type { ActionType, AppState, HistoryEntry, LogEntry, Portal } from './types'
 import { checkAction } from './rules'
+import { computeRisk } from './risk'
 import { getDataset } from '../data/datasets'
 
 /**
@@ -31,8 +32,16 @@ function historyEntry(message: string): HistoryEntry {
   return { id: nextId('hist'), at: Date.now(), message }
 }
 
-/** Apply an effect to a portal, returning a new portal plus a human message. */
-function effect(portal: Portal, action: ActionType): { portal: Portal; message: string } {
+interface Effect {
+  portal: Portal
+  /** The action message: goes to the shared log and the portal history. */
+  message: string
+  /** Extra history-only notes (e.g. a survey report), newest last. */
+  extraHistory?: string[]
+}
+
+/** Apply an effect to a portal, returning a new portal plus human messages. */
+function effect(portal: Portal, action: ActionType): Effect {
   switch (action) {
     case 'stabilize': {
       const stability = Math.min(100, portal.stability + 25)
@@ -43,9 +52,35 @@ function effect(portal: Portal, action: ActionType): { portal: Portal; message: 
       }
     }
     case 'close':
-      return { portal: { ...portal, status: 'closed' }, message: 'Портал закрыт' }
-    case 'sendObserver':
-      return { portal: { ...portal, observerSent: true }, message: 'Отправлен наблюдатель' }
+      return {
+        portal: { ...portal, status: 'closed', observerSent: false, rescuerSent: false },
+        message: 'Портал закрыт',
+      }
+    case 'sendObserver': {
+      const wasUnsurveyed = !portal.surveyed
+      return {
+        portal: { ...portal, observerSent: true, surveyed: true },
+        message: 'Отправлен наблюдатель',
+        extraHistory: wasUnsurveyed
+          ? [
+              `Разведка проведена: энергия ${portal.energy}, стабильность ${portal.stability}, существ внутри ${portal.creaturesInside}`,
+            ]
+          : undefined,
+      }
+    }
+    case 'recallObserver':
+      return { portal: { ...portal, observerSent: false }, message: 'Наблюдатель отозван' }
+    case 'sendRescuer':
+      return { portal: { ...portal, rescuerSent: true }, message: 'Отправлен спасатель' }
+    case 'recallRescuer':
+      return { portal: { ...portal, rescuerSent: false }, message: 'Спасатель отозван' }
+    case 'evacuate': {
+      const n = portal.creaturesInside
+      return {
+        portal: { ...portal, creaturesInside: 0, rescuerSent: false },
+        message: `Эвакуировано существ: ${n}. Спасатель вышел вместе с ними.`,
+      }
+    }
     case 'toggleQuestioned': {
       const status = portal.status === 'questioned' ? 'open' : 'questioned'
       return {
@@ -61,8 +96,8 @@ function effect(portal: Portal, action: ActionType): { portal: Portal; message: 
  *
  * The rule check lives here, not just in the UI: a forbidden action leaves the
  * portal untouched and appends a 'blocked' entry to the shared log. An allowed
- * action mutates the portal and appends both an 'action' log entry and a
- * per-portal history entry.
+ * action mutates the portal and appends both an 'action' log entry and one or
+ * more per-portal history entries.
  */
 export function applyAction(state: AppState, portalId: string, action: ActionType): AppState {
   const target = state.portals.find((p) => p.id === portalId)
@@ -77,10 +112,11 @@ export function applyAction(state: AppState, portalId: string, action: ActionTyp
     }
   }
 
-  const { portal: updated, message } = effect(target, action)
+  const { portal: updated, message, extraHistory } = effect(target, action)
+  const notes = [message, ...(extraHistory ?? [])]
   const withHistory: Portal = {
     ...updated,
-    history: [historyEntry(message), ...updated.history],
+    history: [...notes.map(historyEntry), ...updated.history],
   }
 
   return {
@@ -93,10 +129,11 @@ export function applyAction(state: AppState, portalId: string, action: ActionTyp
 /**
  * Advance the simulation by one hour. Time never ticks on its own — this is the
  * only way clocks move. Every non-closed portal loses an hour of runway and 3
- * points of stability; any portal that hits zero hours collapses (closes).
+ * points of stability. Portals with an observer inside get detailed telemetry in
+ * their history; the rest get a short note. Any portal that hits zero hours
+ * collapses (closes), resets its people-inside flags, and logs who was left behind.
  */
 export function advanceHour(state: AppState): AppState {
-  const log: LogEntry[] = []
   const collapsedLog: LogEntry[] = []
 
   const portals = state.portals.map((portal) => {
@@ -106,25 +143,54 @@ export function advanceHour(state: AppState): AppState {
     const stability = Math.max(0, portal.stability - 3)
     let next: Portal = { ...portal, hoursToCollapse, stability }
 
+    const note = portal.observerSent
+      ? hourlyTelemetry(portal, next)
+      : 'Час прошёл.'
+    next = { ...next, history: [historyEntry(note), ...next.history] }
+
     if (hoursToCollapse === 0) {
+      collapsedLog.push(logEntry(next, 'system', collapseMessage(portal)))
       next = {
         ...next,
         status: 'closed',
-        history: [historyEntry('Портал схлопнулся'), ...next.history],
+        observerSent: false,
+        rescuerSent: false,
+        history: [historyEntry('Портал схлопнулся.'), ...next.history],
       }
-      collapsedLog.push(logEntry(next, 'system', 'Портал схлопнулся'))
     }
 
     return next
   })
 
-  log.push(logEntry(null, 'system', 'Прошёл час'))
+  const tick = logEntry(null, 'system', 'Прошёл час')
 
   return {
     ...state,
     portals,
-    log: [...collapsedLog, ...log, ...state.log],
+    log: [...collapsedLog, tick, ...state.log],
   }
+}
+
+/** Detailed hour-change note for a portal with an observer inside. */
+function hourlyTelemetry(before: Portal, after: Portal): string {
+  const riskBefore = computeRisk(before).score
+  const riskAfter = computeRisk(after).score
+  return (
+    `Час прошёл. Стабильность ${before.stability}→${after.stability}, ` +
+    `энергия ${after.energy}, ` +
+    `до схлопывания ${before.hoursToCollapse}→${after.hoursToCollapse} ч, ` +
+    `риск ${riskBefore}→${riskAfter}.`
+  )
+}
+
+/** System-log line for a collapsing portal, naming everyone left inside. */
+function collapseMessage(portal: Portal): string {
+  const left: string[] = []
+  if (portal.creaturesInside > 0) left.push(`существ ${portal.creaturesInside}`)
+  if (portal.observerSent) left.push('наблюдатель')
+  if (portal.rescuerSent) left.push('спасатель')
+  if (left.length === 0) return 'Портал схлопнулся.'
+  return `Портал схлопнулся. Внутри оставались: ${left.join(', ')}.`
 }
 
 /**
