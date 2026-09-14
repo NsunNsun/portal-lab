@@ -12,8 +12,11 @@ export interface Dataset {
  */
 
 /** Small helper so each fixture reads as a table of the interesting fields. */
-function portal(p: Omit<Portal, 'history'> & Partial<Pick<Portal, 'history'>>): Portal {
-  return { history: [], ...p }
+function portal(
+  p: Omit<Portal, 'history' | 'surveyed' | 'rescuerSent'> &
+    Partial<Pick<Portal, 'history' | 'surveyed' | 'rescuerSent'>>,
+): Portal {
+  return { history: [], surveyed: true, rescuerSent: false, ...p }
 }
 
 const normal: Dataset = {
@@ -27,17 +30,6 @@ const normal: Dataset = {
       energy: 20,
       stability: 90,
       hoursToCollapse: 60,
-      creaturesInside: 0,
-      status: 'open',
-      observerSent: false,
-    }),
-    portal({
-      id: 'n2',
-      name: 'Лунный Брод',
-      world: 'Аэлль-Тан',
-      energy: 30,
-      stability: 85,
-      hoursToCollapse: 48,
       creaturesInside: 0,
       status: 'open',
       observerSent: false,
@@ -57,12 +49,12 @@ const normal: Dataset = {
       id: 'n4',
       name: 'Медное Эхо',
       world: 'Кассавир',
-      energy: 60,
-      stability: 55,
-      hoursToCollapse: 24,
+      energy: 55,
+      stability: 58,
+      hoursToCollapse: 26,
       creaturesInside: 0,
       status: 'questioned',
-      observerSent: true,
+      observerSent: true, // наблюдатель уже внутри — виден бейдж «Набл.»
     }),
     portal({
       id: 'n5',
@@ -75,25 +67,43 @@ const normal: Dataset = {
       status: 'open',
       observerSent: false,
     }),
+    // Два неразведанных портала: параметры заданы, но surveyed:false —
+    // интерфейс их скрывает, пока не отправят наблюдателя.
     portal({
-      id: 'n6',
-      name: 'Багровый Шёпот',
-      world: 'Керн-Аллат',
-      energy: 80,
-      stability: 12,
-      hoursToCollapse: 10,
+      id: 'nu1',
+      name: 'Мглистый Порог',
+      world: 'Аэлль-Тан',
+      energy: 62,
+      stability: 38,
+      hoursToCollapse: 22,
+      creaturesInside: 1,
+      status: 'open',
+      observerSent: false,
+      surveyed: false,
+    }),
+    portal({
+      id: 'nu2',
+      name: 'Шёпот За Гранью',
+      world: 'Ниррат',
+      energy: 34,
+      stability: 71,
+      hoursToCollapse: 44,
       creaturesInside: 0,
       status: 'open',
       observerSent: false,
+      surveyed: false,
     }),
+    // Портал для полного сценария: стабилизировать → спасатель → эвакуировать →
+    // закрыть. Стартовый риск критический (90); одной стабилизации хватает, чтобы
+    // опустить его до 71 — тогда спасателя уже можно отправить.
     portal({
       id: 'n7',
       name: 'Зелёный Голод',
       world: 'Вельзор',
-      energy: 65,
-      stability: 22,
-      hoursToCollapse: 2,
-      creaturesInside: 4,
+      energy: 85,
+      stability: 18,
+      hoursToCollapse: 16,
+      creaturesInside: 3,
       status: 'open',
       observerSent: false,
     }),
@@ -117,6 +127,8 @@ const empty: Dataset = {
   portals: [],
 }
 
+// «Красный день»: пять разведанных порталов, каждый ≥ 85 по НОВОЙ формуле долей.
+// Значения пересчитаны — старые потолки max(85) больше не действуют.
 const critical: Dataset = {
   key: 'critical',
   name: 'Красный день',
@@ -125,8 +137,8 @@ const critical: Dataset = {
       id: 'c1',
       name: 'Треснувшее Небо',
       world: 'Гхол-Марр',
-      energy: 55,
-      stability: 8, // критическая нестабильность
+      energy: 65,
+      stability: 8, // критическая нестабильность → 86
       hoursToCollapse: 18,
       creaturesInside: 0,
       status: 'open',
@@ -136,9 +148,9 @@ const critical: Dataset = {
       id: 'c2',
       name: 'Последняя Секунда',
       world: 'Овринт',
-      energy: 45,
-      stability: 62,
-      hoursToCollapse: 1, // вот-вот схлопнется
+      energy: 60,
+      stability: 30,
+      hoursToCollapse: 1, // вот-вот схлопнется → 85
       creaturesInside: 0,
       status: 'open',
       observerSent: false,
@@ -148,8 +160,8 @@ const critical: Dataset = {
       name: 'Кровавый Разлом',
       world: 'Дракх-Уул',
       energy: 40,
-      stability: 10, // и нестабильность,
-      hoursToCollapse: 1, // и время
+      stability: 10, // нестабильность + время → 92
+      hoursToCollapse: 1,
       creaturesInside: 0,
       status: 'open',
       observerSent: false,
@@ -158,7 +170,7 @@ const critical: Dataset = {
       id: 'c4',
       name: 'Голодная Бездна',
       world: 'Сумеречный Иллат',
-      energy: 100, // предельная нагрузка + существа
+      energy: 100, // предельная нагрузка + время + существа → 90
       stability: 25,
       hoursToCollapse: 4,
       creaturesInside: 2,
@@ -169,7 +181,7 @@ const critical: Dataset = {
       id: 'c5',
       name: 'Воющее Пламя',
       world: 'Фарзан-Кор',
-      energy: 95, // высокий базовый риск без жёстких модификаторов
+      energy: 95, // высокий базовый риск + время → 90
       stability: 20,
       hoursToCollapse: 3,
       creaturesInside: 0,
