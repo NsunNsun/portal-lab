@@ -16,6 +16,20 @@ export function RiskBadge({
 }) {
   const meta = RISK_META[level]
   const large = size === 'lg'
+
+  // Unsurveyed portal: no number to show — just «? Нет данных», muted.
+  if (level === 'unknown') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 ${large ? 'text-base' : 'text-sm'}`}
+        style={{ color: meta.color }}
+      >
+        <span aria-hidden>{meta.icon}</span>
+        <span>{meta.word}</span>
+      </span>
+    )
+  }
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 ${large ? 'text-base' : 'text-sm'}`}

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import type { RiskBreakdown } from '../domain/types'
-import { MODIFIER_EFFECT, formatNum } from './visuals'
+import { formatNum, formatShare, formatSigned } from './visuals'
 
 /**
- * Collapsible «Как посчитан риск». All numbers come from the breakdown the
- * risk function returns — nothing is recomputed here.
+ * Collapsible «Как посчитан риск». First the three weighted base indicators,
+ * then the sequence of factors — each pulling risk a share of the way to 100.
+ * Non-applied factors are shown muted with a note. All numbers come from the
+ * breakdown the risk function returns; nothing is recomputed here.
  */
 export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
   const [open, setOpen] = useState(false)
-
-  const base = risk.parts.reduce((sum, p) => sum + p.contribution, 0)
 
   return (
     <div className="rounded-md" style={{ border: '1px solid var(--line)' }}>
@@ -32,6 +32,7 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
             </p>
           ) : (
             <>
+              {/* Base: three weighted indicators */}
               <table className="w-full border-collapse">
                 <thead>
                   <tr style={{ color: 'var(--ink-muted)' }} className="text-left text-xs">
@@ -56,28 +57,48 @@ export function RiskBreakdownPanel({ risk }: { risk: RiskBreakdown }) {
               </table>
 
               <div
-                className="mt-2 flex justify-between border-t pt-2 text-xs"
+                className="mt-2 flex justify-between border-t pt-2 text-xs font-medium"
                 style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
               >
                 <span>База</span>
-                <span className="nums">{formatNum(base)}</span>
+                <span className="nums">{formatNum(risk.base)}</span>
               </div>
 
-              <div className="mt-3 space-y-1">
-                <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-                  Модификаторы
-                </div>
-                {risk.modifiers.map((m) => (
-                  <div
-                    key={m.label}
-                    className="flex items-start gap-2 text-xs"
-                    style={{ color: m.applied ? 'var(--risk-high)' : 'var(--ink-muted)' }}
-                  >
-                    <span aria-hidden>{m.applied ? '●' : '○'}</span>
-                    <span>{MODIFIER_EFFECT[m.label] ?? m.label}</span>
-                  </div>
-                ))}
+              {/* Sequential factors */}
+              <div className="mt-3 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                Факторы применяются по порядку — каждый приближает риск к 100
               </div>
+              <ul className="mt-2 flex flex-col gap-2">
+                {risk.steps.map((s, i) => (
+                  <li
+                    key={`${s.label}-${i}`}
+                    className="flex flex-col gap-0.5"
+                    style={{ opacity: s.applied ? 1 : 0.55 }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <span aria-hidden style={{ color: s.applied ? 'var(--risk-high)' : 'var(--ink-muted)' }}>
+                          {s.applied ? '●' : '○'}
+                        </span>
+                        <span>{s.label}</span>
+                      </span>
+                      {s.applied ? (
+                        <span className="nums shrink-0" style={{ color: 'var(--ink-2)' }}>
+                          доля {formatShare(s.share)} · {formatNum(s.before)} → {formatNum(s.after)}{' '}
+                          <span style={{ color: 'var(--risk-high)' }}>({formatSigned(s.delta)})</span>
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                          не сработал
+                        </span>
+                      )}
+                    </div>
+                    <div className="pl-5 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                      {s.note}
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
               <div
                 className="mt-3 flex justify-between border-t pt-2 font-medium"

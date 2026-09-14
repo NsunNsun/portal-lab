@@ -3,6 +3,7 @@ import { computeRisk } from '../domain/risk'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
+import { PeopleBadges } from './PeopleBadges'
 import { PortalDetails } from './PortalDetails'
 
 interface Row {
@@ -10,23 +11,47 @@ interface Row {
   risk: RiskBreakdown
 }
 
-/** Sort portals by risk descending — always, no interactive sorting. */
+/**
+ * Sort priority (view-only, not domain):
+ *   1) questioned portals — pinned to the top
+ *   2) unsurveyed portals — parameters unknown
+ *   3) the rest, by risk descending
+ * Ties within a group break by name.
+ */
+function sortRank(p: Portal): number {
+  if (p.status === 'questioned') return 0
+  if (!p.surveyed) return 1
+  return 2
+}
+
 function toSortedRows(portals: Portal[]): Row[] {
   return portals
     .map((portal) => ({ portal, risk: computeRisk(portal) }))
-    .sort((a, b) => b.risk.score - a.risk.score)
+    .sort((a, b) => {
+      const rank = sortRank(a.portal) - sortRank(b.portal)
+      if (rank !== 0) return rank
+      const sa = a.risk.known ? a.risk.score : -1
+      const sb = b.risk.known ? b.risk.score : -1
+      if (sb !== sa) return sb - sa
+      return a.portal.name.localeCompare(b.portal.name, 'ru')
+    })
 }
 
 /** Fixed column widths so the table never overflows its container. */
 const COLS = [
-  { key: 'name', label: 'Название', width: '13%' },
+  { key: 'name', label: 'Название', width: '15%' },
   { key: 'energy', label: 'Энергия', width: '13%' },
   { key: 'stability', label: 'Стабильность', width: '13%' },
-  { key: 'collapse', label: 'До схлопывания, ч', width: '16%' },
+  { key: 'collapse', label: 'До схлопывания, ч', width: '15%' },
   { key: 'creatures', label: 'Существа', width: '9%' },
   { key: 'status', label: 'Статус', width: '13%' },
-  { key: 'risk', label: 'Риск', width: '23%' },
+  { key: 'risk', label: 'Риск', width: '22%' },
 ] as const
+
+/** Muted em dash for unknown (unsurveyed) parameters. */
+function Dash() {
+  return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+}
 
 export function PortalsTable({
   portals,
@@ -83,15 +108,17 @@ export function PortalsTable({
           {rows.map(({ portal, risk }) => {
             const selected = portal.id === selectedId
             const closed = portal.status === 'closed'
+            const known = portal.surveyed
             return (
               <tr
                 key={portal.id}
-                onClick={() => onSelect(portal.id)}
+                // Re-clicking the selected row clears the selection.
+                onClick={() => onSelect(selected ? null : portal.id)}
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    onSelect(portal.id)
+                    onSelect(selected ? null : portal.id)
                   }
                 }}
                 className="cursor-pointer border-t"
@@ -103,17 +130,16 @@ export function PortalsTable({
                 }}
               >
                 <Td>
-                  <div className="font-medium leading-tight">{portal.name}</div>
+                  <div className="font-medium leading-tight">
+                    {portal.name}
+                    <PeopleBadges portal={portal} />
+                  </div>
                   <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
                     {portal.world}
                   </div>
                 </Td>
-                <Td>
-                  <Meter value={portal.energy} label="Энергия" />
-                </Td>
-                <Td>
-                  <Meter value={portal.stability} label="Стабильность" />
-                </Td>
+                <Td>{known ? <Meter value={portal.energy} label="Энергия" /> : <Dash />}</Td>
+                <Td>{known ? <Meter value={portal.stability} label="Стабильность" /> : <Dash />}</Td>
                 <Td>
                   <span
                     className="nums"
@@ -124,7 +150,7 @@ export function PortalsTable({
                     {portal.hoursToCollapse}
                   </span>
                 </Td>
-                <Td className="nums">{portal.creaturesInside}</Td>
+                <Td className="nums">{known ? portal.creaturesInside : <Dash />}</Td>
                 <Td>
                   <StatusBadge status={portal.status} />
                 </Td>
@@ -161,6 +187,7 @@ function PortalAccordionCard({
 }) {
   const { portal, risk } = row
   const closed = portal.status === 'closed'
+  const known = portal.surveyed
   return (
     <div
       className="rounded-lg"
@@ -179,7 +206,10 @@ function PortalAccordionCard({
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="font-medium leading-tight">{portal.name}</div>
+            <div className="font-medium leading-tight">
+              {portal.name}
+              <PeopleBadges portal={portal} />
+            </div>
             <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
               {portal.world}
             </div>
@@ -187,9 +217,13 @@ function PortalAccordionCard({
           <RiskBadge level={risk.level} score={risk.score} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <LabeledMeter label="Энергия" value={portal.energy} />
-          <LabeledMeter label="Стабильность" value={portal.stability} />
-          <Field label="До схлопывания">
+          <LabeledField label="Энергия">
+            {known ? <Meter value={portal.energy} label="Энергия" /> : <Dash />}
+          </LabeledField>
+          <LabeledField label="Стабильность">
+            {known ? <Meter value={portal.stability} label="Стабильность" /> : <Dash />}
+          </LabeledField>
+          <LabeledField label="До схлопывания">
             <span
               className="nums"
               style={{
@@ -198,10 +232,10 @@ function PortalAccordionCard({
             >
               {portal.hoursToCollapse} ч
             </span>
-          </Field>
-          <Field label="Существа">
-            <span className="nums">{portal.creaturesInside}</span>
-          </Field>
+          </LabeledField>
+          <LabeledField label="Существа">
+            {known ? <span className="nums">{portal.creaturesInside}</span> : <Dash />}
+          </LabeledField>
         </div>
         <div className="mt-3 flex items-center justify-between">
           <StatusBadge status={portal.status} />
@@ -220,18 +254,7 @@ function PortalAccordionCard({
   )
 }
 
-function LabeledMeter({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="mb-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
-        {label}
-      </div>
-      <Meter value={value} label={label} />
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function LabeledField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="mb-1 text-xs" style={{ color: 'var(--ink-muted)' }}>

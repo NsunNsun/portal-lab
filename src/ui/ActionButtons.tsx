@@ -2,12 +2,31 @@ import type { ActionType, Portal } from '../domain/types'
 import { checkAction } from '../domain/rules'
 import { actionLabel } from './visuals'
 
-const ACTIONS: ActionType[] = ['stabilize', 'close', 'sendObserver', 'toggleQuestioned']
+/**
+ * Build the six action buttons for a portal, in a 2×3 grid:
+ *
+ *   Стабилизировать          | Закрыть портал
+ *   Отправить/Отозвать набл. | Отправить/Отозвать спас.
+ *   Эвакуировать существ     | Пометить/Снять пометку
+ *
+ * The observer and rescuer buttons flip between send and recall depending on
+ * who is currently inside.
+ */
+function actionsFor(portal: Portal): ActionType[] {
+  return [
+    'stabilize',
+    'close',
+    portal.observerSent ? 'recallObserver' : 'sendObserver',
+    portal.rescuerSent ? 'recallRescuer' : 'sendRescuer',
+    'evacuate',
+    'toggleQuestioned',
+  ]
+}
 
 /**
- * Four action buttons. Forbidden actions are NOT disabled — they stay
- * clickable but look muted and carry a rejection-colored outline plus the
- * reason as a title. The click handler in App shows the toast and logs it.
+ * Forbidden actions are NOT disabled — they stay clickable but look muted and
+ * carry a rejection-colored outline plus the reason as a title. The click
+ * handler in App shows the toast and logs the rejection.
  */
 export function ActionButtons({
   portal,
@@ -18,7 +37,7 @@ export function ActionButtons({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      {ACTIONS.map((action) => {
+      {actionsFor(portal).map((action) => {
         const check = checkAction(portal, action)
         const forbidden = !check.allowed
         const reason = check.allowed ? undefined : check.reason

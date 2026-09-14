@@ -54,7 +54,11 @@ export function PortalsTab({
             />
           </div>
           <div className="min-w-0">
-            <PortalCard portal={selectedPortal} onAction={onAction} />
+            <PortalCard
+              portal={selectedPortal}
+              onAction={onAction}
+              onClose={() => onSelect(null)}
+            />
           </div>
         </div>
       )}

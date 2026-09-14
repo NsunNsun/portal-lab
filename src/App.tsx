@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import type { ActionType, Portal, PortalStatus } from './domain/types'
 import { checkAction } from './domain/rules'
 import { DEFAULT_DATASET_KEY } from './data/datasets'
@@ -36,6 +36,17 @@ export default function App() {
   const toastSeq = useRef(0)
 
   const selectedPortal = state.portals.find((p) => p.id === selectedId) ?? null
+
+  // Esc clears the selection (and thus closes the detail card). When a confirm
+  // dialog is open it handles Esc itself, so we leave the selection alone.
+  useEffect(() => {
+    if (!selectedId || confirm) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedId, confirm])
 
   const notify = useCallback((kind: ToastKind, message: string) => {
     toastSeq.current += 1

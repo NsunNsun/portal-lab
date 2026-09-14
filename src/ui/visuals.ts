@@ -16,6 +16,7 @@ export interface RiskMeta {
 }
 
 export const RISK_META: Record<RiskLevel, RiskMeta> = {
+  unknown: { icon: '?', word: 'Нет данных', color: 'var(--ink-muted)' },
   none: { icon: '—', word: 'Нет', color: 'var(--risk-none)' },
   low: { icon: '▪', word: 'Низкий', color: 'var(--risk-low)' },
   medium: { icon: '◆', word: 'Средний', color: 'var(--risk-medium)' },
@@ -38,6 +39,14 @@ export function actionLabel(action: ActionType, status: PortalStatus): string {
       return 'Закрыть портал'
     case 'sendObserver':
       return 'Отправить наблюдателя'
+    case 'recallObserver':
+      return 'Отозвать наблюдателя'
+    case 'sendRescuer':
+      return 'Отправить спасателя'
+    case 'recallRescuer':
+      return 'Отозвать спасателя'
+    case 'evacuate':
+      return 'Эвакуировать существ'
     case 'toggleQuestioned':
       return status === 'questioned' ? 'Снять пометку' : 'Пометить под вопросом'
   }
@@ -52,6 +61,14 @@ export function actionSuccessText(action: ActionType, statusAfter: PortalStatus)
       return 'Портал закрыт'
     case 'sendObserver':
       return 'Наблюдатель отправлен'
+    case 'recallObserver':
+      return 'Наблюдатель отозван'
+    case 'sendRescuer':
+      return 'Спасатель отправлен'
+    case 'recallRescuer':
+      return 'Спасатель отозван'
+    case 'evacuate':
+      return 'Существа эвакуированы'
     case 'toggleQuestioned':
       return statusAfter === 'questioned' ? 'Портал помечен под вопросом' : 'Пометка снята'
   }
@@ -67,20 +84,20 @@ export const LOG_KIND_META: Record<
   system: { word: 'система', icon: '•', color: 'var(--ink-muted)' },
 }
 
-/**
- * Human-readable effect text for each risk modifier, keyed by the modifier
- * label the domain returns. Presentation only — keeps code field names
- * (stability, hoursToCollapse) out of the interface.
- */
-export const MODIFIER_EFFECT: Record<string, string> = {
-  'Критическая нестабильность': 'Стабильность ниже 20 → риск не ниже 85',
-  'Портал вот-вот схлопнется': 'Меньше 2 часов до схлопывания → риск не ниже 85',
-  'Внутри живые существа': 'Внутри живые существа → +5 к риску',
-}
-
 /** Format a number with up to one decimal place, comma as the decimal mark. */
 export function formatNum(n: number): string {
   return n.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+}
+
+/** Round and prefix with a sign: 12.6 → «+13», 0 → «+0». For risk deltas. */
+export function formatSigned(n: number): string {
+  const r = Math.round(n)
+  return `${r >= 0 ? '+' : ''}${r}`
+}
+
+/** Format a 0..1 share as a whole-percent string, e.g. 0.45 → «45%». */
+export function formatShare(share: number): string {
+  return `${Math.round(share * 100)}%`
 }
 
 /** Format an epoch-ms timestamp as HH:MM:SS in local time. */
