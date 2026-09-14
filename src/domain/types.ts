@@ -5,9 +5,17 @@
 
 export type PortalStatus = 'open' | 'questioned' | 'closed'
 
-export type RiskLevel = 'none' | 'low' | 'medium' | 'high' | 'critical'
+export type RiskLevel = 'unknown' | 'none' | 'low' | 'medium' | 'high' | 'critical'
 
-export type ActionType = 'stabilize' | 'close' | 'sendObserver' | 'toggleQuestioned'
+export type ActionType =
+  | 'stabilize'
+  | 'close'
+  | 'sendObserver'
+  | 'recallObserver'
+  | 'sendRescuer'
+  | 'recallRescuer'
+  | 'evacuate'
+  | 'toggleQuestioned'
 
 /** A single entry in a portal's own change history. */
 export interface HistoryEntry {
@@ -32,6 +40,10 @@ export interface Portal {
   creaturesInside: number
   status: PortalStatus
   observerSent: boolean
+  /** Portal has been surveyed — its parameters are known. */
+  surveyed: boolean
+  /** A rescuer is currently inside the portal. */
+  rescuerSent: boolean
   /** Per-portal change history. */
   history: HistoryEntry[]
 }
@@ -63,19 +75,41 @@ export interface RiskPart {
   contribution: number
 }
 
-/** A hard modifier that can override or bump the base score. */
-export interface RiskModifier {
+/**
+ * One factor applied sequentially after the base. Each factor pulls the running
+ * risk a share `k` of the way toward 100: `after = before + (100 - before) * k`.
+ * Non-applied factors are still returned (applied: false) so the UI can show
+ * them muted with a note explaining why they did not fire.
+ */
+export interface RiskStep {
   label: string
   applied: boolean
-  effect: string
+  /** The share of the remaining distance to 100 this factor took (0 if not applied). */
+  share: number
+  /** Running risk before this factor. */
+  before: number
+  /** Running risk after this factor. */
+  after: number
+  /** after - before. */
+  delta: number
+  /** Human note: the trigger phrase, or why the factor did not apply. */
+  note: string
 }
 
 /** Full, explainable breakdown of a portal's risk. */
 export interface RiskBreakdown {
+  /** false when the portal is not surveyed — nothing below is meaningful. */
+  known: boolean
   score: number
   level: RiskLevel
+  /** The three weighted base indicators. */
   parts: RiskPart[]
-  modifiers: RiskModifier[]
+  /** The weighted base score (sum of `parts` contributions). */
+  base: number
+  /** Sequential factors, in order, including the ones that did not fire. */
+  steps: RiskStep[]
+  /** The applied factor that added the most, or null if none applied. */
+  dominant: { label: string; delta: number } | null
 }
 
 /** Result of checking whether an action is permitted on a portal. */
