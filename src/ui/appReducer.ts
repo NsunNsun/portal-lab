@@ -1,5 +1,5 @@
-import type { ActionType, AppState } from '../domain/types'
-import { advanceHour, applyAction, loadDataset } from '../domain/reducer'
+import type { ActionType, AppState, ShiftKind } from '../domain/types'
+import { advanceHour, applyAction, startShift } from '../domain/reducer'
 
 /**
  * Thin React reducer over the domain functions. It contains no rules of its
@@ -8,7 +8,7 @@ import { advanceHour, applyAction, loadDataset } from '../domain/reducer'
 export type AppEvent =
   | { type: 'apply'; portalId: string; action: ActionType }
   | { type: 'advanceHour' }
-  | { type: 'loadDataset'; key: string }
+  | { type: 'startShift'; kind: ShiftKind }
 
 export function appReducer(state: AppState, event: AppEvent): AppState {
   switch (event.type) {
@@ -16,12 +16,12 @@ export function appReducer(state: AppState, event: AppEvent): AppState {
       return applyAction(state, event.portalId, event.action)
     case 'advanceHour':
       return advanceHour(state)
-    case 'loadDataset':
-      return loadDataset(event.key)
+    case 'startShift':
+      return startShift(event.kind)
   }
 }
 
-/** Initial state builder. */
-export function initAppState(key: string): AppState {
-  return loadDataset(key)
+/** Initial state builder: begins with a populated «Новая смена». */
+export function initAppState(kind: ShiftKind): AppState {
+  return startShift(kind)
 }

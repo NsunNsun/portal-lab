@@ -44,6 +44,8 @@ export interface Portal {
   surveyed: boolean
   /** A rescuer is currently inside the portal. */
   rescuerSent: boolean
+  /** The shift hour at which this portal appeared (0 for starting portals). */
+  spawnedAtHour: number
   /** Per-portal change history. */
   history: HistoryEntry[]
 }
@@ -58,10 +60,25 @@ export interface LogEntry {
   message: string
 }
 
+/** Which shift to start: a populated lab or an empty one. */
+export type ShiftKind = 'new' | 'empty'
+
 export interface AppState {
   portals: Portal[]
   log: LogEntry[]
-  datasetKey: string
+  /** How many times «Прошёл час» has been pressed this shift. */
+  hoursElapsed: number
+  /** Current PRNG state (see domain/random.ts); reset with every shift. */
+  rng: number
+  /** Total portals spawned this shift — drives id and name cycling. */
+  spawnCount: number
+  /** Name-pool indices already used in the current naming cycle. */
+  usedNameIndices: number[]
+  /**
+   * Name of the portal spawned by the most recent advanceHour, or null if none.
+   * A UI-facing hint so the «Прошёл час» toast can mention a new portal.
+   */
+  lastSpawn: string | null
 }
 
 /** One weighted component of the risk score. */

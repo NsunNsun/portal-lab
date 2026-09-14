@@ -1,7 +1,11 @@
-import type { ActionType, AppState, HistoryEntry, LogEntry, Portal } from './types'
+import type { ActionType, AppState, HistoryEntry, LogEntry, Portal, ShiftKind } from './types'
 import { checkAction } from './rules'
 import { computeRisk } from './risk'
-import { getDataset } from '../data/datasets'
+import { SEED, nextRandom, randomInt } from './random'
+import { NEW_SHIFT_PORTALS, SPAWN_NAMES } from '../data/datasets'
+
+/** The lab holds at most this many open portals; no new ones appear at the cap. */
+export const MAX_OPEN_PORTALS = 12
 
 /**
  * Monotonic id generator for runtime-created log/history entries.
@@ -131,7 +135,8 @@ export function applyAction(state: AppState, portalId: string, action: ActionTyp
  * only way clocks move. Every non-closed portal loses an hour of runway and 3
  * points of stability. Portals with an observer inside get detailed telemetry in
  * their history; the rest get a short note. Any portal that hits zero hours
- * collapses (closes), resets its people-inside flags, and logs who was left behind.
+ * collapses (closes), resets its people-inside flags, and logs who was left
+ * behind. Finally, a new (unsurveyed) portal may appear — see `maybeSpawn`.
  */
 export function advanceHour(state: AppState): AppState {
   const collapsedLog: LogEntry[] = []
@@ -162,13 +167,152 @@ export function advanceHour(state: AppState): AppState {
     return next
   })
 
+  const hoursElapsed = state.hoursElapsed + 1
   const tick = logEntry(null, 'system', 'Прошёл час')
+
+  // A new portal may appear once collapses are resolved.
+  const spawn = maybeSpawn(state, portals, hoursElapsed)
 
   return {
     ...state,
-    portals,
-    log: [...collapsedLog, tick, ...state.log],
+    portals: spawn.portals,
+    hoursElapsed,
+    rng: spawn.rng,
+    spawnCount: spawn.spawnCount,
+    usedNameIndices: spawn.usedNameIndices,
+    lastSpawn: spawn.name,
+    log: [...spawn.log, ...collapsedLog, tick, ...state.log],
   }
+}
+
+/**
+ * Probability that a new portal appears this hour. Rises as the lab empties
+ * out and, slowly, as the shift wears on; capped so a long shift never becomes
+ * a guaranteed spawn.
+ */
+export function spawnChance(open: number, hoursElapsed: number): number {
+  return 0.35 * (1 - open / MAX_OPEN_PORTALS) + Math.min(0.25, hoursElapsed * 0.02)
+}
+
+interface SpawnResult {
+  portals: Portal[]
+  rng: number
+  spawnCount: number
+  usedNameIndices: number[]
+  log: LogEntry[]
+  /** Name of the portal that appeared, or null if none did. */
+  name: string | null
+}
+
+/**
+ * Decide whether a portal appears and, if so, roll its parameters and name.
+ * Threads the seeded generator state so the same shift always spawns the same
+ * portals. No roll is consumed when the lab is already at the open cap.
+ */
+function maybeSpawn(state: AppState, portals: Portal[], hoursElapsed: number): SpawnResult {
+  const base: SpawnResult = {
+    portals,
+    rng: state.rng,
+    spawnCount: state.spawnCount,
+    usedNameIndices: state.usedNameIndices,
+    log: [],
+    name: null,
+  }
+
+  const open = portals.filter((p) => p.status !== 'closed').length
+  if (open >= MAX_OPEN_PORTALS) return base
+
+  const decision = nextRandom(state.rng)
+  const chance = spawnChance(open, hoursElapsed)
+  if (decision.value >= chance) {
+    return { ...base, rng: decision.next }
+  }
+
+  // Roll parameters in a fixed order, then pick a name — all from one generator.
+  const energy = randomInt(decision.next, 20, 100)
+  const stability = randomInt(energy.next, 5, 95)
+  const collapse = randomInt(stability.next, 3, 60)
+  const creatures = randomInt(collapse.next, 0, 4)
+  const named = pickSpawnName(creatures.next, state.spawnCount, state.usedNameIndices)
+
+  const portal: Portal = {
+    id: nextId('portal'),
+    name: named.name,
+    world: named.world,
+    energy: energy.value,
+    stability: stability.value,
+    hoursToCollapse: collapse.value,
+    creaturesInside: creatures.value,
+    status: 'open',
+    observerSent: false,
+    surveyed: false,
+    rescuerSent: false,
+    spawnedAtHour: hoursElapsed,
+    history: [],
+  }
+
+  return {
+    portals: [...portals, portal],
+    rng: named.rng,
+    spawnCount: state.spawnCount + 1,
+    usedNameIndices: named.usedNameIndices,
+    log: [
+      logEntry(
+        portal,
+        'system',
+        `Открылся новый портал: ${portal.name} (мир ${portal.world}). Параметры неизвестны.`,
+      ),
+    ],
+    name: portal.name,
+  }
+}
+
+/**
+ * Pick a name from the pool: a random unused entry this cycle. Once the pool is
+ * exhausted a fresh cycle starts and a Roman numeral (II, III, …) is appended.
+ */
+function pickSpawnName(
+  rng: number,
+  spawnCount: number,
+  usedNameIndices: number[],
+): { name: string; world: string; usedNameIndices: number[]; rng: number } {
+  const poolLen = SPAWN_NAMES.length
+  const used = usedNameIndices.length >= poolLen ? [] : usedNameIndices
+
+  const available: number[] = []
+  for (let i = 0; i < poolLen; i++) {
+    if (!used.includes(i)) available.push(i)
+  }
+
+  const pick = randomInt(rng, 0, available.length - 1)
+  const idx = available[pick.value]!
+  const entry = SPAWN_NAMES[idx]!
+
+  const cycle = Math.floor(spawnCount / poolLen) + 1
+  const name = cycle > 1 ? `${entry.name} ${toRoman(cycle)}` : entry.name
+
+  return { name, world: entry.world, usedNameIndices: [...used, idx], rng: pick.next }
+}
+
+const ROMAN: [number, string][] = [
+  [10, 'X'],
+  [9, 'IX'],
+  [5, 'V'],
+  [4, 'IV'],
+  [1, 'I'],
+]
+
+/** Small Roman-numeral formatter — only ever used for low repeat counts. */
+function toRoman(n: number): string {
+  let out = ''
+  let rest = n
+  for (const [value, symbol] of ROMAN) {
+    while (rest >= value) {
+      out += symbol
+      rest -= value
+    }
+  }
+  return out
 }
 
 /** Detailed hour-change note for a portal with an observer inside. */
@@ -194,20 +338,28 @@ function collapseMessage(portal: Portal): string {
 }
 
 /**
- * Replace the current portals with a demo dataset, clearing the log and
- * recording a system entry about the load. Portals are deep-copied so the
- * immutable datasets are never mutated by later actions.
+ * Start a fresh shift, fully resetting state: portals, log, the hour counter and
+ * the generator seed. «Новая смена» loads the starting board (portals deep-copied
+ * so the static dataset is never mutated); «Пустая смена» starts with none.
  */
-export function loadDataset(key: string): AppState {
-  const dataset = getDataset(key)
-  const portals = dataset.portals.map((portal) => ({
-    ...portal,
-    history: [...portal.history],
-  }))
+export function startShift(kind: ShiftKind): AppState {
+  const portals =
+    kind === 'empty'
+      ? []
+      : NEW_SHIFT_PORTALS.map((portal) => ({ ...portal, history: [...portal.history] }))
+
+  const message =
+    kind === 'empty'
+      ? 'Началась пустая смена: активных порталов нет.'
+      : `Началась новая смена: порталов ${portals.length}.`
 
   return {
     portals,
-    log: [logEntry(null, 'system', `Загружен набор: «${dataset.name}»`)],
-    datasetKey: dataset.key,
+    log: [logEntry(null, 'system', message)],
+    hoursElapsed: 0,
+    rng: SEED,
+    spawnCount: 0,
+    usedNameIndices: [],
+    lastSpawn: null,
   }
 }
