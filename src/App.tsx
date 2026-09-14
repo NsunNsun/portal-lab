@@ -1,13 +1,148 @@
-/**
- * UI placeholder. The interface is built in a later step.
- * Domain logic lives in src/domain and is fully framework-agnostic.
- */
+import { useCallback, useReducer, useRef, useState } from 'react'
+import type { ActionType, Portal, PortalStatus } from './domain/types'
+import { checkAction } from './domain/rules'
+import { DEFAULT_DATASET_KEY, getDataset } from './data/datasets'
+import { appReducer, initAppState } from './ui/appReducer'
+import { Header } from './ui/Header'
+import { Tabs } from './ui/Tabs'
+import type { TabKey } from './ui/Tabs'
+import { PortalsTab } from './ui/PortalsTab'
+import { EventLog } from './ui/EventLog'
+import { WorklogTab } from './ui/WorklogTab'
+import { Toasts } from './ui/Toasts'
+import type { Toast, ToastKind } from './ui/toast'
+import { ConfirmDialog } from './ui/ConfirmDialog'
+import { actionSuccessText } from './ui/visuals'
+
+interface PendingConfirm {
+  portalId: string
+  action: ActionType
+  text: string
+}
+
+/** Predict a portal's status after an allowed action (for success-toast copy). */
+function statusAfter(portal: Portal, action: ActionType): PortalStatus {
+  if (action === 'close') return 'closed'
+  if (action === 'toggleQuestioned') return portal.status === 'questioned' ? 'open' : 'questioned'
+  return portal.status
+}
+
 export default function App() {
+  const [state, dispatch] = useReducer(appReducer, DEFAULT_DATASET_KEY, initAppState)
+  const [tab, setTab] = useState<TabKey>('portals')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [confirm, setConfirm] = useState<PendingConfirm | null>(null)
+  const toastSeq = useRef(0)
+
+  const selectedPortal = state.portals.find((p) => p.id === selectedId) ?? null
+
+  const notify = useCallback((kind: ToastKind, message: string) => {
+    toastSeq.current += 1
+    const id = toastSeq.current
+    setToasts((prev) => [...prev, { id, kind, message }])
+  }, [])
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  const performApply = useCallback(
+    (portal: Portal, action: ActionType) => {
+      dispatch({ type: 'apply', portalId: portal.id, action })
+      notify('success', actionSuccessText(action, statusAfter(portal, action)))
+    },
+    [notify],
+  )
+
+  // Action requested from the selected portal's card.
+  const handleAction = useCallback(
+    (action: ActionType) => {
+      const portal = selectedPortal
+      if (!portal) return
+      const check = checkAction(portal, action)
+
+      if (!check.allowed) {
+        // Still dispatch so the reducer records the 'blocked' log entry.
+        dispatch({ type: 'apply', portalId: portal.id, action })
+        notify('blocked', check.reason)
+        return
+      }
+
+      if ('confirm' in check && check.confirm) {
+        setConfirm({ portalId: portal.id, action, text: check.confirm })
+        return
+      }
+
+      performApply(portal, action)
+    },
+    [selectedPortal, notify, performApply],
+  )
+
+  const handleConfirmProceed = useCallback(() => {
+    if (!confirm) return
+    const portal = state.portals.find((p) => p.id === confirm.portalId)
+    if (portal) performApply(portal, confirm.action)
+    setConfirm(null)
+  }, [confirm, state.portals, performApply])
+
+  const handleSelectDataset = useCallback(
+    (key: string) => {
+      dispatch({ type: 'loadDataset', key })
+      setSelectedId(null)
+      notify('system', `Загружен набор: «${getDataset(key).name}»`)
+    },
+    [notify],
+  )
+
+  const handleReset = useCallback(() => {
+    dispatch({ type: 'loadDataset', key: state.datasetKey })
+    setSelectedId(null)
+    notify('system', 'Набор перезагружен')
+  }, [state.datasetKey, notify])
+
+  const handleAdvanceHour = useCallback(() => {
+    dispatch({ type: 'advanceHour' })
+    notify('system', 'Прошёл час')
+  }, [notify])
+
   return (
-    <main className="min-h-screen grid place-items-center text-slate-200 bg-slate-900">
-      <p className="text-sm opacity-70">
-        Лаборатория нестабильных порталов — интерфейс будет добавлен на следующем шаге.
-      </p>
-    </main>
+    <div className="mx-auto min-h-screen max-w-6xl px-4">
+      <Header
+        datasetKey={state.datasetKey}
+        onSelectDataset={handleSelectDataset}
+        onAdvanceHour={handleAdvanceHour}
+        onReset={handleReset}
+      />
+
+      <div className="mt-4">
+        <Tabs value={tab} onChange={setTab} />
+      </div>
+
+      <main className="py-5">
+        {tab === 'portals' && (
+          <PortalsTab
+            portals={state.portals}
+            selectedId={selectedId}
+            selectedPortal={selectedPortal}
+            onSelect={setSelectedId}
+            onAction={handleAction}
+          />
+        )}
+        {tab === 'log' && <EventLog log={state.log} />}
+        {tab === 'worklog' && <WorklogTab />}
+      </main>
+
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
+
+      {confirm && (
+        <ConfirmDialog
+          text={confirm.text}
+          confirmLabel="Всё равно закрыть"
+          onCancel={() => setConfirm(null)}
+          onConfirm={handleConfirmProceed}
+        />
+      )}
+    </div>
   )
 }
