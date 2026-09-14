@@ -17,7 +17,8 @@ export function SummaryTiles({ portals }: { portals: Portal[] }) {
     const level = computeRisk(p).level
     return level === 'high' || level === 'critical'
   }).length
-  const creatures = portals.reduce((sum, p) => sum + p.creaturesInside, 0)
+  // Unsurveyed portals hide their contents, so their creatures are not counted.
+  const creatures = portals.reduce((sum, p) => sum + (p.surveyed ? p.creaturesInside : 0), 0)
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
