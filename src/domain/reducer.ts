@@ -55,11 +55,14 @@ function effect(portal: Portal, action: ActionType): Effect {
         message: `Стабилизирован: устойчивость ${portal.stability}→${stability}%, энергия ${portal.energy}→${energy}%`,
       }
     }
-    case 'close':
+    case 'close': {
+      const inside = closeContentsNote(portal)
       return {
         portal: { ...portal, status: 'closed', observerSent: false, rescuerSent: false },
         message: 'Портал закрыт',
+        extraHistory: inside ? [inside] : undefined,
       }
+    }
     case 'sendObserver': {
       const wasUnsurveyed = !portal.surveyed
       return {
@@ -168,7 +171,7 @@ export function advanceHour(state: AppState): AppState {
   })
 
   const hoursElapsed = state.hoursElapsed + 1
-  const tick = logEntry(null, 'system', 'Прошёл час')
+  const tick = logEntry(null, 'system', `Прошёл час — час ${hoursElapsed} смены`)
 
   // A new portal may appear once collapses are resolved.
   const spawn = maybeSpawn(state, portals, hoursElapsed)
@@ -327,18 +330,39 @@ function hourlyTelemetry(before: Portal, after: Portal): string {
   )
 }
 
+/** Human list of what/who was inside a surveyed portal, or [] if empty. */
+function insideList(portal: Portal): string[] {
+  const left: string[] = []
+  if (portal.creaturesInside > 0) left.push(`существ ${portal.creaturesInside}`)
+  if (portal.observerSent) left.push('наблюдатель')
+  if (portal.rescuerSent) left.push('спасатель')
+  return left
+}
+
 /** System-log line for a collapsing portal, naming everyone left inside. */
 function collapseMessage(portal: Portal): string {
   // An unsurveyed portal never revealed its contents — don't leak them now.
   if (!portal.surveyed) {
     return 'Портал схлопнулся. Что было внутри, осталось неизвестным.'
   }
-  const left: string[] = []
-  if (portal.creaturesInside > 0) left.push(`существ ${portal.creaturesInside}`)
-  if (portal.observerSent) left.push('наблюдатель')
-  if (portal.rescuerSent) left.push('спасатель')
+  const left = insideList(portal)
   if (left.length === 0) return 'Портал схлопнулся.'
   return `Портал схлопнулся. Внутри оставались: ${left.join(', ')}.`
+}
+
+/**
+ * History note when a portal is closed with someone still inside. Same
+ * hidden-data principle as `collapseMessage`: an unsurveyed portal never reveals
+ * its contents. Returns null when there is nothing worth recording (a surveyed,
+ * empty portal).
+ */
+function closeContentsNote(portal: Portal): string | null {
+  if (!portal.surveyed) {
+    return 'Портал закрыт вслепую: содержимое осталось неизвестным.'
+  }
+  const left = insideList(portal)
+  if (left.length === 0) return null
+  return `При закрытии внутри оставались: ${left.join(', ')}.`
 }
 
 /**

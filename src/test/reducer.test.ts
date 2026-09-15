@@ -49,6 +49,45 @@ describe('applyAction', () => {
     expect(next.log[0]?.kind).toBe('blocked')
     expect(next.log[0]?.message).toBe('Портал закрыт — стабилизировать нечего.')
   })
+
+  it('закрытие портала с существами и людьми пишет вторую запись в историю с перечислением', () => {
+    const before = makePortal({
+      id: 'p',
+      surveyed: true,
+      creaturesInside: 3,
+      observerSent: true,
+      rescuerSent: true,
+    })
+    const next = applyAction(stateWith(before), 'p', 'close')
+    const after = next.portals.find((p) => p.id === 'p')!
+
+    expect(after.status).toBe('closed')
+    expect(after.history).toHaveLength(2)
+    expect(after.history[0]!.message).toBe('Портал закрыт')
+    expect(after.history[1]!.message).toBe(
+      'При закрытии внутри оставались: существ 3, наблюдатель, спасатель.',
+    )
+  })
+
+  it('закрытие разведанного пустого портала не добавляет второй записи', () => {
+    const before = makePortal({ id: 'p', surveyed: true, creaturesInside: 0 })
+    const next = applyAction(stateWith(before), 'p', 'close')
+    const after = next.portals.find((p) => p.id === 'p')!
+
+    expect(after.history).toHaveLength(1)
+    expect(after.history[0]!.message).toBe('Портал закрыт')
+  })
+
+  it('закрытие неразведанного портала не раскрывает число существ в истории', () => {
+    const before = makePortal({ id: 'p', surveyed: false, creaturesInside: 2 })
+    const next = applyAction(stateWith(before), 'p', 'close')
+    const after = next.portals.find((p) => p.id === 'p')!
+
+    expect(after.history).toHaveLength(2)
+    expect(after.history[1]!.message).toBe('Портал закрыт вслепую: содержимое осталось неизвестным.')
+    expect(after.history.every((h) => !h.message.includes('2'))).toBe(true)
+    expect(after.history.every((h) => !h.message.includes('существ'))).toBe(true)
+  })
 })
 
 describe('advanceHour', () => {
@@ -87,7 +126,17 @@ describe('advanceHour', () => {
         (e) => e.kind === 'system' && e.message.startsWith('Портал схлопнулся. Внутри оставались:'),
       ),
     ).toBe(true)
-    expect(next.log.some((e) => e.kind === 'system' && e.message === 'Прошёл час')).toBe(true)
+    expect(
+      next.log.some((e) => e.kind === 'system' && e.message.startsWith('Прошёл час')),
+    ).toBe(true)
+  })
+
+  it('системная запись о прошедшем часе содержит номер часа смены', () => {
+    const state = makeState([makePortal({ id: 'p' })], { hoursElapsed: 4 })
+    const next = advanceHour(state)
+
+    const tick = next.log.find((e) => e.kind === 'system' && e.message.startsWith('Прошёл час'))!
+    expect(tick.message).toBe('Прошёл час — час 5 смены')
   })
 
   it('схлопывание неразведанного портала не раскрывает число существ внутри', () => {
