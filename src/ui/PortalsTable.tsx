@@ -21,11 +21,11 @@ function toSortedRows(portals: Portal[]): Row[] {
 
 /** Fixed column widths so the table never overflows its container. */
 const COLS = [
-  { key: 'name', label: 'Название', width: '15%' },
+  { key: 'name', label: 'Название', width: '11%' },
   { key: 'energy', label: 'Энергия', width: '12%' },
   { key: 'stability', label: 'Стабильность', width: '13%' },
   { key: 'collapse', label: 'До схлопывания, ч', width: '18%' },
-  { key: 'creatures', label: 'Внутри', width: '10%' },
+  { key: 'creatures', label: 'Внутри', width: '14%' },
   { key: 'status', label: 'Статус', width: '12%' },
   { key: 'risk', label: 'Риск', width: '20%' },
 ] as const

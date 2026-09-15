@@ -16,7 +16,7 @@ export function PeopleInside({ portal }: { portal: Portal }) {
   const people = peopleInside(portal)
   if (people.length === 0) return null
   return (
-    <div className="text-xs leading-tight" style={{ color: 'var(--ink-muted)' }}>
+    <div className="break-words text-xs leading-tight" style={{ color: 'var(--ink-muted)' }}>
       {people.join(', ')}
     </div>
   )
