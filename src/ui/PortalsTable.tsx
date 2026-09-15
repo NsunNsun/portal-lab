@@ -5,7 +5,7 @@ import { isNewPortal } from '../domain/portal'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
-import { PeopleBadges } from './PeopleBadges'
+import { PeopleInside } from './PeopleBadges'
 import { NewBadge } from './PeopleBadges'
 import { PortalDetails } from './PortalDetails'
 
@@ -25,7 +25,7 @@ const COLS = [
   { key: 'energy', label: 'Энергия', width: '12%' },
   { key: 'stability', label: 'Стабильность', width: '13%' },
   { key: 'collapse', label: 'До схлопывания, ч', width: '18%' },
-  { key: 'creatures', label: 'Существа', width: '10%' },
+  { key: 'creatures', label: 'Внутри', width: '10%' },
   { key: 'status', label: 'Статус', width: '12%' },
   { key: 'risk', label: 'Риск', width: '20%' },
 ] as const
@@ -118,7 +118,6 @@ export function PortalsTable({
                   <div className="font-medium leading-tight">
                     {portal.name}
                     {isNewPortal(portal, hoursElapsed) && <NewBadge />}
-                    <PeopleBadges portal={portal} />
                   </div>
                   <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
                     {portal.world}
@@ -136,7 +135,16 @@ export function PortalsTable({
                     {portal.hoursToCollapse}
                   </span>
                 </Td>
-                <Td className="nums">{known ? portal.creaturesInside : <Dash />}</Td>
+                <Td className="align-top">
+                  {known ? (
+                    <>
+                      <span className="nums">{portal.creaturesInside}</span>
+                      <PeopleInside portal={portal} />
+                    </>
+                  ) : (
+                    <Dash />
+                  )}
+                </Td>
                 <Td>
                   <StatusBadge status={portal.status} />
                 </Td>
@@ -197,7 +205,6 @@ function PortalAccordionCard({
             <div className="font-medium leading-tight">
               {portal.name}
               {isNew && <NewBadge />}
-              <PeopleBadges portal={portal} />
             </div>
             <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
               {portal.world}
@@ -222,8 +229,15 @@ function PortalAccordionCard({
               {portal.hoursToCollapse} ч
             </span>
           </LabeledField>
-          <LabeledField label="Существа">
-            {known ? <span className="nums">{portal.creaturesInside}</span> : <Dash />}
+          <LabeledField label="Внутри">
+            {known ? (
+              <>
+                <span className="nums">{portal.creaturesInside}</span>
+                <PeopleInside portal={portal} />
+              </>
+            ) : (
+              <Dash />
+            )}
           </LabeledField>
         </div>
         <div className="mt-3 flex items-center justify-between">

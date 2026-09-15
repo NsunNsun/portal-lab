@@ -1,16 +1,24 @@
 import type { Portal } from '../domain/types'
 
+/** Comma-separated list of the people currently inside a portal, or []. */
+export function peopleInside(portal: Portal): string[] {
+  const people: string[] = []
+  if (portal.observerSent) people.push('наблюдатель')
+  if (portal.rescuerSent) people.push('спасатель')
+  return people
+}
+
 /**
- * Small text badges shown next to a portal name when a person is inside.
- * Plain framed text, never emoji: «Набл.» for an observer, «Спас.» for a rescuer.
+ * Secondary muted line under the creature count in the «Внутри» column: who
+ * (observer/rescuer) is inside. Renders nothing when no one is inside.
  */
-export function PeopleBadges({ portal }: { portal: Portal }) {
-  if (!portal.observerSent && !portal.rescuerSent) return null
+export function PeopleInside({ portal }: { portal: Portal }) {
+  const people = peopleInside(portal)
+  if (people.length === 0) return null
   return (
-    <span className="ml-1 inline-flex gap-1 align-middle">
-      {portal.observerSent && <Badge title="Внутри наблюдатель">Набл.</Badge>}
-      {portal.rescuerSent && <Badge title="Внутри спасатель">Спас.</Badge>}
-    </span>
+    <div className="text-xs leading-tight" style={{ color: 'var(--ink-muted)' }}>
+      {people.join(', ')}
+    </div>
   )
 }
 
@@ -23,18 +31,6 @@ export function NewBadge() {
       style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
     >
       Новый
-    </span>
-  )
-}
-
-function Badge({ children, title }: { children: React.ReactNode; title: string }) {
-  return (
-    <span
-      title={title}
-      className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-medium leading-none"
-      style={{ border: '1px solid var(--line)', color: 'var(--ink-muted)' }}
-    >
-      {children}
     </span>
   )
 }
