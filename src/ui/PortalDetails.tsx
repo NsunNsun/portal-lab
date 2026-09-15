@@ -1,4 +1,5 @@
-import type { ActionType, Portal } from '../domain/types'
+import { useState } from 'react'
+import type { ActionType, HistoryEntry, Portal } from '../domain/types'
 import { computeRisk } from '../domain/risk'
 import { recommendAction } from '../domain/recommend'
 import { RISK_META, formatSigned, formatTime } from './visuals'
@@ -93,17 +94,37 @@ export function PortalDetails({
       <ActionButtons portal={portal} onAction={onAction} />
 
       {/* History */}
-      <div>
-        <div className="mb-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
-          История изменений
-        </div>
-        {portal.history.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
-            Изменений пока не было.
-          </p>
-        ) : (
+      <PortalHistory key={portal.id} history={portal.history} />
+    </div>
+  )
+}
+
+/** How many history entries to show before collapsing behind «Показать все». */
+const HISTORY_PREVIEW = 8
+
+/**
+ * Portal change history, newest first. Shows the last {@link HISTORY_PREVIEW}
+ * entries; if there are more, a toggle reveals the full list (and folds it back
+ * again). Keyed by portal id in the parent so the toggle resets per portal.
+ */
+function PortalHistory({ history }: { history: HistoryEntry[] }) {
+  const [showAll, setShowAll] = useState(false)
+  const hasMore = history.length > HISTORY_PREVIEW
+  const shown = showAll ? history : history.slice(0, HISTORY_PREVIEW)
+
+  return (
+    <div>
+      <div className="mb-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+        История изменений
+      </div>
+      {history.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          Изменений пока не было.
+        </p>
+      ) : (
+        <>
           <ul className="flex flex-col gap-1.5">
-            {portal.history.map((h) => (
+            {shown.map((h) => (
               <li key={h.id} className="flex gap-2 text-sm">
                 <span className="nums shrink-0" style={{ color: 'var(--ink-muted)' }}>
                   {formatTime(h.at)}
@@ -112,8 +133,18 @@ export function PortalDetails({
               </li>
             ))}
           </ul>
-        )}
-      </div>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-2 text-xs"
+              style={{ color: 'var(--accent)' }}
+            >
+              {showAll ? 'Свернуть' : `Показать все (${history.length})`}
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }
