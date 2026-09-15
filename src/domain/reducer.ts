@@ -329,6 +329,10 @@ function hourlyTelemetry(before: Portal, after: Portal): string {
 
 /** System-log line for a collapsing portal, naming everyone left inside. */
 function collapseMessage(portal: Portal): string {
+  // An unsurveyed portal never revealed its contents — don't leak them now.
+  if (!portal.surveyed) {
+    return 'Портал схлопнулся. Что было внутри, осталось неизвестным.'
+  }
   const left: string[] = []
   if (portal.creaturesInside > 0) left.push(`существ ${portal.creaturesInside}`)
   if (portal.observerSent) left.push('наблюдатель')

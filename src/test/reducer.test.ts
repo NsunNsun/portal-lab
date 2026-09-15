@@ -89,4 +89,35 @@ describe('advanceHour', () => {
     ).toBe(true)
     expect(next.log.some((e) => e.kind === 'system' && e.message === 'Прошёл час')).toBe(true)
   })
+
+  it('схлопывание неразведанного портала не раскрывает число существ внутри', () => {
+    const unsurveyed = makePortal({
+      id: 'p',
+      hoursToCollapse: 1,
+      creaturesInside: 1,
+      surveyed: false,
+    })
+    const next = advanceHour(stateWith(unsurveyed))
+
+    const collapse = next.log.find(
+      (e) => e.kind === 'system' && e.message.startsWith('Портал схлопнулся'),
+    )!
+    expect(collapse.message).toBe('Портал схлопнулся. Что было внутри, осталось неизвестным.')
+    expect(collapse.message).not.toContain('существ')
+  })
+
+  it('схлопывание разведанного портала перечисляет содержимое как раньше', () => {
+    const surveyed = makePortal({
+      id: 'p',
+      hoursToCollapse: 1,
+      creaturesInside: 2,
+      surveyed: true,
+    })
+    const next = advanceHour(stateWith(surveyed))
+
+    const collapse = next.log.find(
+      (e) => e.kind === 'system' && e.message.startsWith('Портал схлопнулся'),
+    )!
+    expect(collapse.message).toBe('Портал схлопнулся. Внутри оставались: существ 2.')
+  })
 })
