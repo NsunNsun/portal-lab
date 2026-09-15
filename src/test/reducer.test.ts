@@ -136,7 +136,7 @@ describe('advanceHour', () => {
     const next = advanceHour(state)
 
     const tick = next.log.find((e) => e.kind === 'system' && e.message.startsWith('Прошёл час'))!
-    expect(tick.message).toBe('Прошёл час — час 5 смены')
+    expect(tick.message).toBe('Прошёл час. С начала смены: 5 ч')
   })
 
   it('схлопывание неразведанного портала не раскрывает число существ внутри', () => {

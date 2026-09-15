@@ -67,8 +67,8 @@ export default function App() {
       notify(
         'system',
         state.lastSpawn
-          ? `Прошёл час — час ${n}. Открылся портал: ${state.lastSpawn}`
-          : `Прошёл час — час ${n}`,
+          ? `Прошёл час. С начала смены: ${n} ч. Открылся портал: ${state.lastSpawn}`
+          : `Прошёл час. С начала смены: ${n} ч`,
       )
     }
     prevHours.current = state.hoursElapsed

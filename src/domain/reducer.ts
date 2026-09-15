@@ -171,7 +171,7 @@ export function advanceHour(state: AppState): AppState {
   })
 
   const hoursElapsed = state.hoursElapsed + 1
-  const tick = logEntry(null, 'system', `Прошёл час — час ${hoursElapsed} смены`)
+  const tick = logEntry(null, 'system', `Прошёл час. С начала смены: ${hoursElapsed} ч`)
 
   // A new portal may appear once collapses are resolved.
   const spawn = maybeSpawn(state, portals, hoursElapsed)
