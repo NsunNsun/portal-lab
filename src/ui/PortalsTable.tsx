@@ -1,6 +1,7 @@
 import type { ActionType, Portal, RiskBreakdown } from '../domain/types'
 import { computeRisk } from '../domain/risk'
 import { sortPortals } from '../domain/sort'
+import { isNewPortal } from '../domain/portal'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
@@ -21,22 +22,17 @@ function toSortedRows(portals: Portal[]): Row[] {
 /** Fixed column widths so the table never overflows its container. */
 const COLS = [
   { key: 'name', label: 'Название', width: '15%' },
-  { key: 'energy', label: 'Энергия', width: '13%' },
+  { key: 'energy', label: 'Энергия', width: '12%' },
   { key: 'stability', label: 'Стабильность', width: '13%' },
-  { key: 'collapse', label: 'До схлопывания, ч', width: '15%' },
-  { key: 'creatures', label: 'Существа', width: '9%' },
-  { key: 'status', label: 'Статус', width: '13%' },
-  { key: 'risk', label: 'Риск', width: '22%' },
+  { key: 'collapse', label: 'До схлопывания, ч', width: '18%' },
+  { key: 'creatures', label: 'Существа', width: '10%' },
+  { key: 'status', label: 'Статус', width: '12%' },
+  { key: 'risk', label: 'Риск', width: '20%' },
 ] as const
 
 /** Muted em dash for unknown (unsurveyed) parameters. */
 function Dash() {
   return <span style={{ color: 'var(--ink-muted)' }}>—</span>
-}
-
-/** A portal counts as «new» during the hour it appeared. */
-function isNew(portal: Portal, hoursElapsed: number): boolean {
-  return hoursElapsed - portal.spawnedAtHour < 1
 }
 
 export function PortalsTable({
@@ -64,7 +60,7 @@ export function PortalsTable({
             key={row.portal.id}
             row={row}
             selected={row.portal.id === selectedId}
-            isNew={isNew(row.portal, hoursElapsed)}
+            isNew={isNewPortal(row.portal, hoursElapsed)}
             onSelect={onSelect}
             onAction={onAction}
           />
@@ -121,7 +117,7 @@ export function PortalsTable({
                 <Td>
                   <div className="font-medium leading-tight">
                     {portal.name}
-                    {isNew(portal, hoursElapsed) && <NewBadge />}
+                    {isNewPortal(portal, hoursElapsed) && <NewBadge />}
                     <PeopleBadges portal={portal} />
                   </div>
                   <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
