@@ -39,7 +39,8 @@ export default function App() {
   const notify = useCallback((kind: ToastKind, message: string) => {
     toastSeq.current += 1
     const id = toastSeq.current
-    setToasts((prev) => [...prev, { id, kind, message }])
+    // Keep only the three most recent toasts so the stack never buries the UI.
+    setToasts((prev) => [...prev, { id, kind, message }].slice(-3))
   }, [])
 
   const dismissToast = useCallback((id: number) => {
@@ -62,9 +63,12 @@ export default function App() {
   const prevHours = useRef(state.hoursElapsed)
   useEffect(() => {
     if (state.hoursElapsed > prevHours.current) {
+      const n = state.hoursElapsed
       notify(
         'system',
-        state.lastSpawn ? `Прошёл час. Открылся портал: ${state.lastSpawn}` : 'Прошёл час',
+        state.lastSpawn
+          ? `Прошёл час — час ${n}. Открылся портал: ${state.lastSpawn}`
+          : `Прошёл час — час ${n}`,
       )
     }
     prevHours.current = state.hoursElapsed
