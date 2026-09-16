@@ -24,7 +24,7 @@ const COLS = [
   { key: 'name', label: 'Название', width: '9%' },
   { key: 'energy', label: 'Энергия', width: '12%' },
   { key: 'stability', label: 'Стабильность', width: '13%' },
-  { key: 'collapse', label: 'До схлопывания, ч', width: '14%' },
+  { key: 'collapse', label: 'До схлопывания', width: '14%' },
   { key: 'creatures', label: 'Внутри', width: '14%' },
   { key: 'status', label: 'Статус', width: '12%' },
   { key: 'risk', label: 'Риск', width: '26%' },
