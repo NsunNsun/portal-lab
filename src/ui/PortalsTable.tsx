@@ -1,10 +1,11 @@
-import type { ActionType, Portal, RiskBreakdown } from '../domain/types'
+import type { ActionType, Portal, RiskBreakdown, RiskLevel } from '../domain/types'
 import { computeRisk } from '../domain/risk'
 import { sortPortals } from '../domain/sort'
 import { isNewPortal } from '../domain/portal'
 import { Meter } from './Meter'
 import { StatusBadge } from './StatusBadge'
 import { RiskBadge } from './RiskBadge'
+import { RISK_META } from './visuals'
 import { PeopleInside } from './PeopleBadges'
 import { NewBadge } from './PeopleBadges'
 import { PortalDetails } from './PortalDetails'
@@ -19,15 +20,22 @@ function toSortedRows(portals: Portal[]): Row[] {
   return sortPortals(portals).map((portal) => ({ portal, risk: computeRisk(portal) }))
 }
 
-/** Fixed column widths so the table never overflows its container. */
+/**
+ * Fixed column widths so the table never overflows its container. The wide
+ * layout caps the table at ~704px (max-w-6xl minus the 400px detail column), so
+ * these shares are tuned against that: «Название» is wide enough for the longest
+ * spawn name («Хрустальная Трещина») on one line, and «Риск» — now two lines —
+ * only needs room for «Критический» / «⚠ 94», roughly half its old share.
+ * `center` columns align both header and cells to the middle.
+ */
 const COLS = [
-  { key: 'name', label: 'Название', width: '9%' },
-  { key: 'energy', label: 'Энергия', width: '12%' },
-  { key: 'stability', label: 'Стабильность', width: '13%' },
-  { key: 'collapse', label: 'До схлопывания', width: '14%' },
-  { key: 'creatures', label: 'Внутри', width: '14%' },
-  { key: 'status', label: 'Статус', width: '12%' },
-  { key: 'risk', label: 'Риск', width: '26%' },
+  { key: 'name', label: 'Название', width: '26%', center: false },
+  { key: 'energy', label: 'Энергия', width: '11%', center: false },
+  { key: 'stability', label: 'Стабильность', width: '13%', center: false },
+  { key: 'collapse', label: 'До схлопывания', width: '10%', center: true },
+  { key: 'creatures', label: 'Внутри', width: '13%', center: true },
+  { key: 'status', label: 'Статус', width: '12%', center: true },
+  { key: 'risk', label: 'Риск', width: '15%', center: false },
 ] as const
 
 /** Muted em dash for unknown (unsurveyed) parameters. */
@@ -83,7 +91,12 @@ export function PortalsTable({
         <thead>
           <tr style={{ color: 'var(--ink-muted)' }} className="text-left">
             {COLS.map((c) => (
-              <th key={c.key} className="whitespace-nowrap px-2 py-2 text-xs font-normal">
+              <th
+                key={c.key}
+                className={`px-2 py-2 text-xs font-normal ${
+                  c.center ? 'text-center' : 'whitespace-nowrap'
+                }`}
+              >
                 {c.label}
               </th>
             ))}
@@ -106,7 +119,9 @@ export function PortalsTable({
                     onSelect(selected ? null : portal.id)
                   }
                 }}
-                className="cursor-pointer border-t"
+                // h-14 gives every row the same minimum height so rows with a
+                // people line under «Внутри» don't make the table step up and down.
+                className="h-14 cursor-pointer border-t"
                 style={{
                   borderColor: 'var(--line)',
                   boxShadow: selected ? 'inset 3px 0 0 0 var(--accent)' : 'none',
@@ -123,9 +138,17 @@ export function PortalsTable({
                     {portal.world}
                   </div>
                 </Td>
-                <Td>{known ? <Meter value={portal.energy} label="Энергия" /> : <Dash />}</Td>
-                <Td>{known ? <Meter value={portal.stability} label="Стабильность" /> : <Dash />}</Td>
-                <Td>
+                <Td className="text-center">
+                  {known ? <Meter value={portal.energy} label="Энергия" layout="inline" /> : <Dash />}
+                </Td>
+                <Td className="text-center">
+                  {known ? (
+                    <Meter value={portal.stability} label="Стабильность" layout="inline" />
+                  ) : (
+                    <Dash />
+                  )}
+                </Td>
+                <Td className="text-center">
                   <span
                     className="nums"
                     style={{
@@ -135,7 +158,7 @@ export function PortalsTable({
                     {portal.hoursToCollapse}
                   </span>
                 </Td>
-                <Td className="align-top">
+                <Td className="text-center">
                   {known ? (
                     <>
                       <span className="nums">{portal.creaturesInside}</span>
@@ -145,11 +168,11 @@ export function PortalsTable({
                     <Dash />
                   )}
                 </Td>
-                <Td>
+                <Td className="text-center">
                   <StatusBadge status={portal.status} />
                 </Td>
-                <Td className="whitespace-nowrap">
-                  <RiskBadge level={risk.level} score={risk.score} />
+                <Td>
+                  <TableRisk level={risk.level} score={risk.score} />
                 </Td>
               </tr>
             )
@@ -162,6 +185,27 @@ export function PortalsTable({
 
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-2 py-2 align-middle ${className}`}>{children}</td>
+}
+
+/**
+ * Risk shown on two lines inside the table cell: the level word above, the icon
+ * and number below — both in the level color. This keeps the column narrow (the
+ * old single line «⚠ Критический · 94» forced a much wider column). Unsurveyed
+ * portals show only «Нет данных»; closed portals read «Нет» / «— 0».
+ */
+function TableRisk({ level, score }: { level: RiskLevel; score: number }) {
+  const meta = RISK_META[level]
+  return (
+    <div className="leading-tight" style={{ color: meta.color }}>
+      <div className="font-medium">{meta.word}</div>
+      {level !== 'unknown' && (
+        <div className="mt-0.5 whitespace-nowrap">
+          <span aria-hidden>{meta.icon}</span>{' '}
+          <span className="nums font-semibold">{score}</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
