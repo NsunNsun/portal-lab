@@ -18,7 +18,7 @@ export interface RiskMeta {
 export const RISK_META: Record<RiskLevel, RiskMeta> = {
   unknown: { icon: '?', word: 'Нет данных', color: 'var(--ink-muted)' },
   none: { icon: '—', word: 'Нет', color: 'var(--risk-none)' },
-  low: { icon: '▪', word: 'Низкий', color: 'var(--risk-low)' },
+  low: { icon: '●', word: 'Низкий', color: 'var(--risk-low)' },
   medium: { icon: '◆', word: 'Средний', color: 'var(--risk-medium)' },
   high: { icon: '▲', word: 'Высокий', color: 'var(--risk-high)' },
   critical: { icon: '⚠', word: 'Критический', color: 'var(--risk-critical)' },
