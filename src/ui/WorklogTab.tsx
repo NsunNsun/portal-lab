@@ -72,7 +72,9 @@ function StagesSection() {
               >
                 <span>{stage.name}</span>
                 <span className="flex items-center gap-2">
-                  <span className="nums text-xs" style={{ color: 'var(--ink-muted)' }}>{stage.time}</span>
+                  {stage.time && (
+                    <span className="nums text-xs" style={{ color: 'var(--ink-muted)' }}>{stage.time}</span>
+                  )}
                   <span aria-hidden>{open ? '▲' : '▼'}</span>
                 </span>
               </button>
