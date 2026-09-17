@@ -21,21 +21,24 @@ function toSortedRows(portals: Portal[]): Row[] {
 }
 
 /**
- * Fixed column widths so the table never overflows its container. The wide
- * layout caps the table at ~704px (max-w-6xl minus the 400px detail column), so
- * these shares are tuned against that. Every header label fits on one line:
- * «Название» holds the longest spawn name («Хрустальная Трещина»), «Статус»
- * holds the «Под вопросом» badge, «Осталось, ч» stays on one line, and «Риск»
- * (two lines) fits «Критический». Cell padding is px-1.5 rather than px-2 so all
- * of those one-line labels fit at once without a horizontal scrollbar.
+ * Fixed column widths so the table never overflows its container. The page cap
+ * was raised max-w-6xl→max-w-7xl (1152→1280px), so the wide layout now gives the
+ * table ~830px (page inner minus the 400px detail column and the grid gap)
+ * instead of ~704px — the extra ~128px is what makes all seven one-line labels
+ * fit comfortably rather than by pixel-shaving one column against another. Every
+ * header label fits on one line: «Название» holds the longest spawn name
+ * («Хрустальная Трещина»), «Статус» holds the «Под вопросом» badge, «Осталось, ч»
+ * stays on one line, and «Риск» (two lines) fits «Критический». «Внутри» is wide
+ * enough for «наблюдатель» on one line, so «наблюдатель, спасатель» wraps by word.
+ * Cell padding is back to px-2 (shrunk to px-1.5 only when space was tight).
  * `center` columns align both header and cells to the middle.
  */
 const COLS = [
   { key: 'name', label: 'Название', width: '23%', center: false },
-  { key: 'energy', label: 'Энергия', width: '12%', center: true },
+  { key: 'energy', label: 'Энергия', width: '11%', center: true },
   { key: 'stability', label: 'Стабильность', width: '13%', center: true },
   { key: 'collapse', label: 'Осталось, ч', width: '11%', center: true },
-  { key: 'creatures', label: 'Внутри', width: '12%', center: true },
+  { key: 'creatures', label: 'Внутри', width: '13%', center: true },
   { key: 'status', label: 'Статус', width: '15%', center: true },
   { key: 'risk', label: 'Риск', width: '14%', center: false },
 ] as const
@@ -95,7 +98,7 @@ export function PortalsTable({
             {COLS.map((c) => (
               <th
                 key={c.key}
-                className={`whitespace-nowrap px-1.5 py-2 text-xs font-normal ${
+                className={`whitespace-nowrap px-2 py-2 text-xs font-normal ${
                   c.center ? 'text-center' : ''
                 }`}
               >
@@ -186,7 +189,7 @@ export function PortalsTable({
 }
 
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-1.5 py-2 align-middle ${className}`}>{children}</td>
+  return <td className={`px-2 py-2 align-middle ${className}`}>{children}</td>
 }
 
 /**

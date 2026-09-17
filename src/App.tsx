@@ -125,7 +125,7 @@ export default function App() {
   }, [])
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl px-4">
+    <div className="mx-auto min-h-screen max-w-7xl px-4">
       <Header
         tab={tab}
         onTabChange={setTab}
