@@ -1,7 +1,8 @@
 /**
  * Structured AI worklog data, rendered on the «AI Worklog» tab.
- * Only real facts from the two completed stages. Time/token fields are TODO
- * until a human fills them; the rest we write elsewhere.
+ * The single source for the tab: summary (tools, total time, tokens, date),
+ * process stages, decisions, AI mistakes, manual rewrites, verification
+ * scenarios and improvements. Per-stage time is intentionally left blank.
  */
 
 export interface WorklogSummary {
